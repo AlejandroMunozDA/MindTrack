@@ -560,12 +560,26 @@ function getSelColor(cid,iid){
   return a ? a.style.background : document.getElementById(iid).value;
 }
 
+/* ═══════════════ CONTRAST HELPER ═══════════════ */
+// Returns '#fff' or '#1a1a1a' depending on which contrasts better with bgHex
+function contrastColor(bgHex) {
+  const hex = bgHex.replace('#','');
+  if(hex.length < 6) return '#fff';
+  const r = parseInt(hex.slice(0,2),16);
+  const g = parseInt(hex.slice(2,4),16);
+  const b = parseInt(hex.slice(4,6),16);
+  // Relative luminance (WCAG formula)
+  const toLinear = v => { const s=v/255; return s<=0.04045?s/12.92:Math.pow((s+0.055)/1.055,2.4); };
+  const L = 0.2126*toLinear(r) + 0.7152*toLinear(g) + 0.0722*toLinear(b);
+  return L > 0.179 ? '#1a1a2e' : '#ffffff';
+}
+
 /* ═══════════════ SVGs ═══════════════ */
-const svgCircle = (done,c) => done
-  ? `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="rgba(255,255,255,.45)" stroke-width="1.5"/><path d="M5.5 9l2.5 2.5 4.5-5" stroke="rgba(255,255,255,.55)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-  : `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="rgba(255,255,255,.65)" stroke-width="1.5"/></svg>`;
-const svgPencil = () => `<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M14.1 2.5l3.4 3.4-10 10L4 17l1.1-3.5 9-11z" stroke="rgba(255,255,255,.8)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const svgClose  = () => `<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="rgba(255,255,255,.8)" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+const svgCircle = (done, ink) => done
+  ? `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="${ink}" stroke-opacity=".55" stroke-width="1.5"/><path d="M5.5 9l2.5 2.5 4.5-5" stroke="${ink}" stroke-opacity=".7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  : `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" stroke="${ink}" stroke-opacity=".75" stroke-width="1.5"/></svg>`;
+const svgPencil = ink => `<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M14.1 2.5l3.4 3.4-10 10L4 17l1.1-3.5 9-11z" stroke="${ink}" stroke-opacity=".8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const svgClose  = ink => `<svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="${ink}" stroke-opacity=".8" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 
 /* ═══════════════ RENDER HABITS ═══════════════ */
 function renderHabits(){
@@ -577,15 +591,18 @@ function renderHabits(){
   habits.forEach(h => {
     const bar = document.createElement('div');
     bar.className = 'habit-bar'+(h.completed?' completed':'');
-    const c = h.color||'#7c6ef7';
+    const c   = h.color||'#7c6ef7';
+    const ink = contrastColor(c);  // auto white or dark
+    // day pill adapts too
+    const pillStyle = `background:rgba(${ink==='#ffffff'?'255,255,255':'0,0,0'},.18);color:${ink};`;
     bar.innerHTML=`
       <div class="bar-inner" style="background:${c}; box-shadow:0 4px 18px ${c}55;">
-        <span class="bar-name" style="color:#fff; text-shadow:0 1px 4px rgba(0,0,0,.35);">${escHtml(h.name)}</span>
-        <div class="bar-meta">${h.days.map(d=>`<span class="day-pill">${d}</span>`).join('')}</div>
+        <span class="bar-name" style="color:${ink};">${escHtml(h.name)}</span>
+        <div class="bar-meta">${h.days.map(d=>`<span class="day-pill" style="${pillStyle}">${d}</span>`).join('')}</div>
         <div class="bar-actions">
-          <button class="btn-ic btn-circle" title="${h.completed?'Desmarcar':'Completar'}">${svgCircle(h.completed,c)}</button>
-          <button class="btn-ic btn-sm edit-btn" title="Editar">${svgPencil()}</button>
-          <button class="btn-ic btn-sm del" title="Eliminar">${svgClose()}</button>
+          <button class="btn-ic btn-circle" title="${h.completed?'Desmarcar':'Completar'}" style="border-color:${ink};opacity:.85;">${svgCircle(h.completed,ink)}</button>
+          <button class="btn-ic btn-sm edit-btn" title="Editar">${svgPencil(ink)}</button>
+          <button class="btn-ic btn-sm del" title="Eliminar">${svgClose(ink)}</button>
         </div>
       </div>`;
     bar.querySelector('.btn-circle').addEventListener('click',()=>toggleHabit(h.id));
