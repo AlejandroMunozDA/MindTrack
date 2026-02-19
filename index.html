@@ -216,7 +216,7 @@
       aspect-ratio:1; display:flex; align-items:center; justify-content:center;
       font-size:.78rem; border-radius:50%; position:relative;
     }
-    .cal-cell.empty { }
+
     .cal-cell.today {
       background:rgba(124,110,247,.2); border:1px solid var(--accent);
       color:var(--accent); font-weight:700;
@@ -579,8 +579,8 @@ function renderHabits(){
     bar.className = 'habit-bar'+(h.completed?' completed':'');
     const c = h.color||'#7c6ef7';
     bar.innerHTML=`
-      <div class="bar-inner" style="background:linear-gradient(135deg,${c}22,${c}10);">
-        <span class="bar-name" style="color:${c};">${escHtml(h.name)}</span>
+      <div class="bar-inner" style="background:${c}; box-shadow:0 4px 18px ${c}55;">
+        <span class="bar-name" style="color:#fff; text-shadow:0 1px 4px rgba(0,0,0,.35);">${escHtml(h.name)}</span>
         <div class="bar-meta">${h.days.map(d=>`<span class="day-pill">${d}</span>`).join('')}</div>
         <div class="bar-actions">
           <button class="btn-ic btn-circle" title="${h.completed?'Desmarcar':'Completar'}">${svgCircle(h.completed,c)}</button>
