@@ -756,14 +756,17 @@ function renderNotes(){
   notes.forEach(n=>{
     const bar=document.createElement('div');
     bar.className='note-bar'+(n.done?' done':'');
-    const c=n.done?'#555577':'#7c6ef7';
+    const bg = n.done
+      ? 'linear-gradient(135deg,#2a2a3a,#3a3a55)'
+      : 'linear-gradient(135deg,#2d0060,#9b59b6,#4b0082,#cc88ff,#2d0060)';
+    const outline = '-1px -1px 0 rgba(0,0,0,.65),1px -1px 0 rgba(0,0,0,.65),-1px 1px 0 rgba(0,0,0,.65),1px 1px 0 rgba(0,0,0,.65)';
     bar.innerHTML=`
-      <div class="bar-inner" style="background:linear-gradient(135deg,${c}22,${c}10);">
-        <span class="bar-name" style="color:${c};">${escHtml(n.title||'Sin título')}</span>
-        <div class="bar-meta"><span class="note-body-preview">${escHtml((n.body||'').replace(/\n/g,' ').slice(0,80))}</span></div>
+      <div class="bar-inner" style="background:${bg}; box-shadow:0 4px 22px rgba(0,0,0,.5);">
+        <span class="bar-name" style="color:#fff; text-shadow:${outline};">${escHtml(n.title||'Sin título')}</span>
+        <div class="bar-meta"><span class="note-body-preview" style="color:rgba(255,255,255,.7); text-shadow:${outline};">${escHtml((n.body||'').replace(/\n/g,' ').slice(0,80))}</span></div>
         <div class="bar-actions">
-          <button class="btn-ic btn-circle" title="${n.done?'Desmarcar':'Completar'}">${svgCircle(n.done,c)}</button>
-          <button class="btn-ic btn-sm del" title="Eliminar">${svgClose()}</button>
+          <button class="btn-ic btn-circle" title="${n.done?'Desmarcar':'Completar'}" style="border-color:rgba(255,255,255,.7);">${svgCircle(n.done,'#fff')}</button>
+          <button class="btn-ic btn-sm del" title="Eliminar">${svgClose('#fff')}</button>
         </div>
       </div>`;
     bar.querySelector('.btn-circle').addEventListener('click',()=>toggleNote(n.id));
