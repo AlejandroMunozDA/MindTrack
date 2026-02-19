@@ -504,12 +504,19 @@ function todayKey() {
 }
 
 function checkPerfectDay(){
-  if(habits.length === 0) return;
+  const key = todayKey();
+  if(habits.length === 0) {
+    perfectDays.delete(key);
+    savePerfectDays();
+    return;
+  }
   const all = habits.every(h => h.completed);
   if(all){
-    perfectDays.add(todayKey());
-    savePerfectDays();
+    perfectDays.add(key);
+  } else {
+    perfectDays.delete(key);
   }
+  savePerfectDays();
 }
 
 /* ═══════════════ NAV ═══════════════ */
@@ -651,12 +658,22 @@ document.getElementById('btn-add-habit').addEventListener('click',()=>{
 
 document.getElementById('create-save').addEventListener('click',()=>{
   const name=document.getElementById('create-name').value.trim();
-  if(!name){ flash('create-name'); return; }
+  if(!name){ 
+    alert('Por favor, ingresa el nombre del hábito.');
+    flash('create-name'); 
+    return; 
+  }
   const days=getSelDays('create-days');
-  if(!days.length){ alert('Selecciona al menos un día.'); return; }
+  if(!days.length){ 
+    alert('Por favor, selecciona al menos un día de la semana.'); 
+    return; 
+  }
   const {grad, hex}=getSelColor('create-colors','cp-create');
   habits.push({id:Date.now(),name,days,grad,colorHex:hex,completed:false});
-  saveHabits(); renderHabits(); closeModal('modal-create');
+  saveHabits(); 
+  checkPerfectDay(); // Update streak logic immediately
+  renderHabits(); 
+  closeModal('modal-create');
 });
 
 /* ═══════════════ EDIT HABIT ═══════════════ */
@@ -671,13 +688,23 @@ function openEditHabit(id){
 }
 document.getElementById('edit-save').addEventListener('click',()=>{
   const name=document.getElementById('edit-name').value.trim();
-  if(!name){ flash('edit-name'); return; }
+  if(!name){ 
+    alert('El nombre del hábito no puede estar vacío.');
+    flash('edit-name'); 
+    return; 
+  }
   const days=getSelDays('edit-days');
-  if(!days.length){ alert('Selecciona al menos un día.'); return; }
+  if(!days.length){ 
+    alert('Debes seleccionar al menos un día.'); 
+    return; 
+  }
   const {grad, hex}=getSelColor('edit-colors','cp-edit');
   const h=habits.find(x=>x.id===editingHabitId);
   if(h){h.name=name;h.days=days;h.grad=grad;h.colorHex=hex;}
-  saveHabits(); renderHabits(); closeModal('modal-edit');
+  saveHabits(); 
+  checkPerfectDay(); // Update streak logic immediately
+  renderHabits(); 
+  closeModal('modal-edit');
 });
 
 /* ═══════════════ DELETE (shared) ═══════════════ */
@@ -689,7 +716,9 @@ function openDelete(id,type,name){
 document.getElementById('delete-confirm').addEventListener('click',()=>{
   if(deletingType==='habit'){
     habits=habits.filter(x=>x.id!==deletingId);
-    saveHabits(); renderHabits();
+    saveHabits(); 
+    checkPerfectDay(); // Update streak if habits count changes
+    renderHabits();
   } else {
     notes=notes.filter(x=>x.id!==deletingId);
     saveNotes(); renderNotes();
