@@ -162,13 +162,13 @@
     .day-btn.selected { background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 0 10px rgba(124,110,247,.5); }
 
     /* Colors */
-    .color-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .color-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .color-swatch {
-      width:32px; height:32px; border-radius:50%; border:2.5px solid transparent;
+      width:48px; height:30px; border-radius:8px; border:2.5px solid transparent;
       cursor:pointer; transition:transform .15s,border-color .15s;
     }
-    .color-swatch:hover { transform:scale(1.15); }
-    .color-swatch.active { border-color:#fff; transform:scale(1.15); }
+    .color-swatch:hover { transform:scale(1.1); }
+    .color-swatch.active { border-color:#fff; transform:scale(1.1); box-shadow:0 0 10px rgba(255,255,255,.4); }
     input[type="color"] {
       width:32px; height:32px; border-radius:50%; border:2px solid var(--border);
       padding:2px; background:none; cursor:pointer;
@@ -468,7 +468,17 @@
 <script>
 /* ═══════════════ CONSTANTS & STATE ═══════════════ */
 const DAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-const PALETTE = ['#7c6ef7','#f76c9e','#f7a96c','#6ef7a0','#6cd8f7','#f7f06c','#d46cf7'];
+// Metallic gradient palette — each entry: { grad: CSS gradient, hex: representative mid-color for contrast calc }
+const PALETTE = [
+  { grad:'linear-gradient(135deg,#7a5c00,#ffd700,#b38600,#ffe87c,#7a5c00)', hex:'#c8a600', label:'Oro'      },
+  { grad:'linear-gradient(135deg,#5a5a5a,#e8e8e8,#9e9e9e,#ffffff,#5a5a5a)', hex:'#b0b0b0', label:'Plata'    },
+  { grad:'linear-gradient(135deg,#5c2800,#cd7f32,#8b4513,#e8a068,#5c2800)', hex:'#a05020', label:'Bronce'   },
+  { grad:'linear-gradient(135deg,#1a2e5c,#4a90d9,#1e4080,#79b8ff,#1a2e5c)', hex:'#1e4080', label:'Acero'    },
+  { grad:'linear-gradient(135deg,#003d20,#00e676,#00692f,#69ffa8,#003d20)', hex:'#006b30', label:'Esmeralda'},
+  { grad:'linear-gradient(135deg,#5c0000,#e60026,#8b0000,#ff5566,#5c0000)', hex:'#8b0000', label:'Rubí'     },
+  { grad:'linear-gradient(135deg,#2d0060,#9b59b6,#4b0082,#cc88ff,#2d0060)', hex:'#4b0082', label:'Amatista' },
+  { grad:'linear-gradient(135deg,#1a1a1a,#6e6e6e,#2a2a2a,#aaaaaa,#1a1a1a)', hex:'#303030', label:'Titanio'  },
+];
 
 let habits    = JSON.parse(localStorage.getItem('habitos_h') || '[]');
 let notes     = JSON.parse(localStorage.getItem('habitos_n') || '[]');
@@ -538,26 +548,37 @@ function getSelDays(cid){
 }
 
 /* ═══════════════ COLOR PICKER ═══════════════ */
-function buildColors(cid, iid, sel){
+function buildColors(cid, iid, selGrad, selHex){
   const c = document.getElementById(cid); c.innerHTML='';
-  PALETTE.forEach(col => {
-    const sw = document.createElement('div'); sw.className='color-swatch'; sw.style.background=col;
-    if(sel===col) sw.classList.add('active');
+  PALETTE.forEach((p, idx) => {
+    const sw = document.createElement('div');
+    sw.className='color-swatch'+(selGrad===p.grad?' active':'');
+    sw.style.background = p.grad;
+    sw.title = p.label;
     sw.addEventListener('click',()=>{
       c.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('active'));
-      sw.classList.add('active'); document.getElementById(iid).value=col;
+      sw.classList.add('active');
+      sw.dataset.grad = p.grad;
+      sw.dataset.hex  = p.hex;
+      document.getElementById(iid).value = p.hex;
     });
+    // store data on element to retrieve later
+    sw.dataset.grad = p.grad;
+    sw.dataset.hex  = p.hex;
     c.appendChild(sw);
   });
+  // Custom solid color fallback
   const inp = document.createElement('input'); inp.type='color'; inp.id=iid;
-  inp.value = PALETTE.includes(sel)?sel:(sel||PALETTE[0]);
+  inp.value = selHex && selHex.startsWith('#') ? selHex : PALETTE[0].hex;
+  inp.title = 'Color personalizado';
   inp.addEventListener('input',()=>c.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('active')));
   c.appendChild(inp);
-  if(PALETTE.includes(sel)) c.querySelectorAll('.color-swatch')[PALETTE.indexOf(sel)]?.classList.add('active');
 }
-function getSelColor(cid,iid){
-  const a=document.getElementById(cid).querySelector('.color-swatch.active');
-  return a ? a.style.background : document.getElementById(iid).value;
+function getSelColor(cid, iid){
+  const a = document.getElementById(cid).querySelector('.color-swatch.active');
+  if(a) return { grad: a.dataset.grad, hex: a.dataset.hex };
+  const hex = document.getElementById(iid).value;
+  return { grad: hex, hex }; // solid color as gradient fallback
 }
 
 /* ═══════════════ CONTRAST HELPER ═══════════════ */
@@ -591,18 +612,20 @@ function renderHabits(){
   habits.forEach(h => {
     const bar = document.createElement('div');
     bar.className = 'habit-bar'+(h.completed?' completed':'');
-    const c   = h.color||'#7c6ef7';
-    const ink = contrastColor(c);  // auto white or dark
-    // day pill adapts too
-    const pillStyle = `background:rgba(${ink==='#ffffff'?'255,255,255':'0,0,0'},.18);color:${ink};`;
+    // Support both old (h.color hex) and new (h.grad + h.colorHex) formats
+    const grad = h.grad || h.color || PALETTE[0].grad;
+    const hex  = h.colorHex || h.color || PALETTE[0].hex;
+    const ink  = contrastColor(hex);
+    const outline = '-1px -1px 0 rgba(0,0,0,.65),1px -1px 0 rgba(0,0,0,.65),-1px 1px 0 rgba(0,0,0,.65),1px 1px 0 rgba(0,0,0,.65)';
+    const pillStyle = `background:rgba(0,0,0,.22);color:#fff;text-shadow:${outline};`;
     bar.innerHTML=`
-      <div class="bar-inner" style="background:${c}; box-shadow:0 4px 18px ${c}55;">
-        <span class="bar-name" style="color:${ink};">${escHtml(h.name)}</span>
+      <div class="bar-inner" style="background:${grad}; box-shadow:0 4px 22px rgba(0,0,0,.5);">
+        <span class="bar-name" style="color:#fff; text-shadow:${outline};">${escHtml(h.name)}</span>
         <div class="bar-meta">${h.days.map(d=>`<span class="day-pill" style="${pillStyle}">${d}</span>`).join('')}</div>
         <div class="bar-actions">
-          <button class="btn-ic btn-circle" title="${h.completed?'Desmarcar':'Completar'}" style="border-color:${ink};opacity:.85;">${svgCircle(h.completed,ink)}</button>
-          <button class="btn-ic btn-sm edit-btn" title="Editar">${svgPencil(ink)}</button>
-          <button class="btn-ic btn-sm del" title="Eliminar">${svgClose(ink)}</button>
+          <button class="btn-ic btn-circle" title="${h.completed?'Desmarcar':'Completar'}" style="border-color:rgba(255,255,255,.7);">${svgCircle(h.completed,'#fff')}</button>
+          <button class="btn-ic btn-sm edit-btn" title="Editar">${svgPencil('#fff')}</button>
+          <button class="btn-ic btn-sm del" title="Eliminar">${svgClose('#fff')}</button>
         </div>
       </div>`;
     bar.querySelector('.btn-circle').addEventListener('click',()=>toggleHabit(h.id));
@@ -621,7 +644,7 @@ function toggleHabit(id){
 document.getElementById('btn-add-habit').addEventListener('click',()=>{
   document.getElementById('create-name').value='';
   buildDays('create-days',[]);
-  buildColors('create-colors','cp-create',PALETTE[0]);
+  buildColors('create-colors','cp-create', PALETTE[0].grad, PALETTE[0].hex);
   openModal('modal-create');
   setTimeout(()=>document.getElementById('create-name').focus(),120);
 });
@@ -631,8 +654,8 @@ document.getElementById('create-save').addEventListener('click',()=>{
   if(!name){ flash('create-name'); return; }
   const days=getSelDays('create-days');
   if(!days.length){ alert('Selecciona al menos un día.'); return; }
-  const color=getSelColor('create-colors','cp-create');
-  habits.push({id:Date.now(),name,days,color,completed:false});
+  const {grad, hex}=getSelColor('create-colors','cp-create');
+  habits.push({id:Date.now(),name,days,grad,colorHex:hex,completed:false});
   saveHabits(); renderHabits(); closeModal('modal-create');
 });
 
@@ -642,7 +665,7 @@ function openEditHabit(id){
   const h=habits.find(x=>x.id===id);
   document.getElementById('edit-name').value=h.name;
   buildDays('edit-days',h.days);
-  buildColors('edit-colors','cp-edit',h.color);
+  buildColors('edit-colors','cp-edit', h.grad||h.color, h.colorHex||h.color);
   openModal('modal-edit');
   setTimeout(()=>document.getElementById('edit-name').focus(),120);
 }
@@ -651,9 +674,9 @@ document.getElementById('edit-save').addEventListener('click',()=>{
   if(!name){ flash('edit-name'); return; }
   const days=getSelDays('edit-days');
   if(!days.length){ alert('Selecciona al menos un día.'); return; }
-  const color=getSelColor('edit-colors','cp-edit');
+  const {grad, hex}=getSelColor('edit-colors','cp-edit');
   const h=habits.find(x=>x.id===editingHabitId);
-  if(h){h.name=name;h.days=days;h.color=color;}
+  if(h){h.name=name;h.days=days;h.grad=grad;h.colorHex=hex;}
   saveHabits(); renderHabits(); closeModal('modal-edit');
 });
 
