@@ -48,6 +48,8 @@ export default function App() {
     const [newHabit, setNewHabit] = useState({ name: '', days: [], grad: PALETTE[0].grad, hex: PALETTE[0].hex })
     const [editingHabitId, setEditingHabitId] = useState(null)
     const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, type: null, name: '', data: null })
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+    const [currentCalDate, setCurrentCalDate] = useState(new Date())
 
     // Search queries
     const [noteSearchQuery, setNoteSearchQuery] = useState("")
@@ -265,6 +267,21 @@ export default function App() {
     const getNotePriorityCount = (grad) => notes.filter(n => n.grad === grad && !n.done).length
     const getActivityPriorityCount = (grad) => activities.filter(a => a.grad === grad && !a.done).length
 
+    const getStreak = () => {
+        let streak = 0
+        let checkDate = new Date()
+        while (true) {
+            const dateStr = checkDate.toISOString().split('T')[0]
+            if (perfectDays.has(dateStr)) {
+                streak++
+                checkDate.setDate(checkDate.getDate() - 1)
+            } else {
+                break
+            }
+        }
+        return streak
+    }
+
     return (
         <div className="min-h-screen bg-white dark:bg-[#0f0f14] text-black dark:text-white transition-colors duration-300">
             <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#0f0f14]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between">
@@ -292,10 +309,15 @@ export default function App() {
                     {activePage === 'editor_act' && 'EDITOR DE ACTIVIDAD'}
                 </h1>
 
-                <div className="flex gap-1 w-32 justify-end">
+                <div className="flex gap-2 w-44 justify-end items-center">
                     <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-transform active:scale-90">
                         {isDark ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
+                    {activePage === 'habitos' && (
+                        <button onClick={() => setIsCalendarOpen(true)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-indigo-500 transition-transform active:scale-90" title="Calendario">
+                            <Calendar size={20} />
+                        </button>
+                    )}
                     {(activePage === 'habitos' || activePage === 'notes' || activePage === 'lectura' || activePage === 'actividades') && (
                         <button
                             onClick={() => {
@@ -312,35 +334,76 @@ export default function App() {
                 </div>
             </header>
 
-            <main className={cn("mx-auto p-5 pb-20 transition-all duration-500", activePage === 'lectura' ? "max-w-5xl" : "max-w-xl")}>
+            <main className={cn("mx-auto p-5 pb-20 transition-all duration-500", activePage === 'lectura' ? "max-w-5xl" : (activePage === 'habitos' ? "max-w-4xl" : "max-w-xl"))}>
                 {activePage === 'habitos' && (
-                    <div className="space-y-6">
-                        <div className="flex justify-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
-                            {['all', 'done', 'todo'].map(f => (
-                                <button key={f} onClick={() => setHabitFilter(f)}
-                                    className={cn("flex-1 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-widest",
-                                        habitFilter === f ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20" : "text-gray-400 dark:text-gray-500")}
-                                >{f === 'all' ? 'Todos' : f === 'done' ? 'Completas' : 'Incompletas'}</button>
-                            ))}
-                        </div>
-                        <div className="grid gap-3">
-                            {habits.filter(h => habitFilter === 'all' || (habitFilter === 'done' ? h.completed : !h.completed)).map(habit => (
-                                <div key={habit.id} className={cn("relative overflow-hidden p-4 rounded-2xl border border-white/10 shadow-xl transition-all", habit.completed ? "opacity-30 scale-[0.97]" : "hover:-translate-y-1 hover:shadow-2xl")}
-                                    style={{ background: habit.grad || habit.color }}>
-                                    <div className="relative z-10 flex items-center justify-between">
-                                        <div>
-                                            <h3 className="font-black text-white text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] uppercase tracking-tight italic">{habit.name}</h3>
-                                            <div className="flex gap-1 mt-2">{habit.days.map(d => <span key={d} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-black/30 text-white border border-white/10 uppercase">{d}</span>)}</div>
-                                        </div>
-                                        <div className="flex gap-1 items-center">
-                                            <button onClick={() => toggleHabit(habit.id)} className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/20 transition-all">{habit.completed ? <CheckCircle size={22} /> : <Circle size={22} />}</button>
-                                            <button onClick={() => { setEditingHabitId(habit.id); setNewHabit({ ...habit }); setIsHabitModalOpen(true); }} className="p-2 text-white/70 hover:text-white"><Edit2 size={16} /></button>
-                                            <button onClick={() => openDeleteConfirm(habit.id, 'habit', habit.name)} className="p-2 text-white/50 hover:text-white"><Trash2 size={16} /></button>
-                                        </div>
+                    <div className="flex flex-col md:flex-row gap-8 items-start">
+                        {/* DASHBOARD LATERAL */}
+                        <div className="w-full md:w-72 shrink-0 space-y-6">
+                            <div className="bg-gray-50 dark:bg-white/5 rounded-[2.5rem] p-8 border border-indigo-500/10 shadow-inner relative overflow-hidden group">
+                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all"></div>
+                                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500/50 mb-6 text-center">Progreso Diario</h2>
+
+                                <div className="relative flex items-center justify-center mb-6">
+                                    <svg className="w-32 h-32 transform -rotate-90">
+                                        <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-200 dark:text-white/5" />
+                                        <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={2 * Math.PI * 58}
+                                            strokeDashoffset={2 * Math.PI * 58 * (1 - (habits.length > 0 ? habits.filter(h => h.completed).length / habits.length : 0))}
+                                            strokeLinecap="round" className="text-indigo-500 transition-all duration-1000 ease-out" />
+                                    </svg>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <span className="text-3xl font-black text-indigo-900 dark:text-white">{habits.length > 0 ? Math.round((habits.filter(h => h.completed).length / habits.length) * 100) : 0}%</span>
+                                        <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Completado</span>
                                     </div>
                                 </div>
-                            ))}
-                            {habits.length === 0 && <div className="text-center py-20 opacity-20 uppercase font-black text-sm tracking-widest">Nada por aquí</div>}
+
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center bg-white dark:bg-white/5 p-4 rounded-2xl border border-indigo-500/5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-500"><BarChart2 size={16} /></div>
+                                            <span className="text-[10px] font-black uppercase tracking-tight opacity-60">Total</span>
+                                        </div>
+                                        <span className="text-lg font-black">{habits.length}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-white dark:bg-white/5 p-4 rounded-2xl border border-indigo-500/5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-orange-500/10 rounded-xl text-orange-500"><Flame size={16} /></div>
+                                            <span className="text-[10px] font-black uppercase tracking-tight opacity-60">Récord</span>
+                                        </div>
+                                        <span className="text-lg font-black">{perfectDays.size}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* LISTA DE HÁBITOS */}
+                        <div className="flex-1 w-full space-y-6">
+                            <div className="flex justify-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
+                                {['all', 'done', 'todo'].map(f => (
+                                    <button key={f} onClick={() => setHabitFilter(f)}
+                                        className={cn("flex-1 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-widest",
+                                            habitFilter === f ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20" : "text-gray-400 dark:text-gray-500")}
+                                    >{f === 'all' ? 'Todos' : f === 'done' ? 'Completas' : 'Incompletas'}</button>
+                                ))}
+                            </div>
+                            <div className="grid gap-3">
+                                {habits.filter(h => habitFilter === 'all' || (habitFilter === 'done' ? h.completed : !h.completed)).map(habit => (
+                                    <div key={habit.id} className={cn("relative overflow-hidden p-4 rounded-2xl border border-white/10 shadow-xl transition-all", habit.completed ? "opacity-30 scale-[0.97]" : "hover:-translate-y-1 hover:shadow-2xl")}
+                                        style={{ background: habit.grad || habit.color }}>
+                                        <div className="relative z-10 flex items-center justify-between">
+                                            <div>
+                                                <h3 className="font-black text-white text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] uppercase tracking-tight italic">{habit.name}</h3>
+                                                <div className="flex gap-1 mt-2">{habit.days.map(d => <span key={d} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-black/30 text-white border border-white/10 uppercase">{d}</span>)}</div>
+                                            </div>
+                                            <div className="flex gap-1 items-center">
+                                                <button onClick={() => toggleHabit(habit.id)} className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/20 transition-all">{habit.completed ? <CheckCircle size={22} /> : <Circle size={22} />}</button>
+                                                <button onClick={() => { setEditingHabitId(habit.id); setNewHabit({ ...habit }); setIsHabitModalOpen(true); }} className="p-2 text-white/70 hover:text-white"><Edit2 size={16} /></button>
+                                                <button onClick={() => openDeleteConfirm(habit.id, 'habit', habit.name)} className="p-2 text-white/50 hover:text-white"><Trash2 size={16} /></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {habits.length === 0 && <div className="text-center py-20 opacity-20 uppercase font-black text-sm tracking-widest">Nada por aquí</div>}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -599,6 +662,60 @@ export default function App() {
                                 <input type="text" autoFocus className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/10 p-4 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={newFileName} onChange={e => setNewFileName(e.target.value)} onKeyDown={e => e.key === "Enter" && saveFileName()} />
                             </div>
                             <button onClick={saveFileName} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black shadow-xl shadow-indigo-500/30 uppercase">ACTUALIZAR</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {isCalendarOpen && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-6"><button onClick={() => setIsCalendarOpen(false)}><X size={24} className="text-gray-400" /></button></div>
+                        <h2 className="text-xl font-black uppercase tracking-tighter italic mb-8 flex items-center gap-3">
+                            <Calendar className="text-indigo-500" /> Historial
+                        </h2>
+
+                        <div className="bg-indigo-500/5 rounded-3xl p-6 mb-8 flex items-center justify-between border border-indigo-500/10">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 opacity-60">Racha Actual</span>
+                                <span className="text-3xl font-black italic">{getStreak()} DÍAS</span>
+                            </div>
+                            <Flame className="text-orange-500 w-10 h-10 drop-shadow-[0_0_15px_rgba(249,115,22,0.4)]" />
+                        </div>
+
+                        <div className="grid grid-cols-7 gap-2 text-center mb-4">
+                            {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map(d => (
+                                <span key={d} className="text-[10px] font-black opacity-30">{d}</span>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-7 gap-2">
+                            {(() => {
+                                const year = currentCalDate.getFullYear()
+                                const month = currentCalDate.getMonth()
+                                const firstDay = new Date(year, month, 1).getDay()
+                                const daysInMonth = new Date(year, month + 1, 0).getDate()
+                                const days = []
+                                for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} />)
+                                for (let d = 1; d <= daysInMonth; d++) {
+                                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                                    const isPerfect = perfectDays.has(dateStr)
+                                    days.push(
+                                        <div key={d} className="aspect-square flex items-center justify-center relative">
+                                            <span className={cn("text-xs font-bold", isPerfect ? "text-white z-10" : "opacity-60")}>{d}</span>
+                                            {isPerfect && <div className="absolute inset-1 bg-indigo-500 rounded-full animate-in zoom-in duration-300"></div>}
+                                        </div>
+                                    )
+                                }
+                                return days
+                            })()}
+                        </div>
+
+                        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            <span>{currentCalDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+                            <div className="flex gap-4">
+                                <button onClick={() => setCurrentCalDate(new Date(currentCalDate.setMonth(currentCalDate.getMonth() - 1)))} className="hover:text-indigo-500 transition-colors cursor-pointer">Ant</button>
+                                <button onClick={() => setCurrentCalDate(new Date(currentCalDate.setMonth(currentCalDate.getMonth() + 1)))} className="hover:text-indigo-500 transition-colors cursor-pointer">Sig</button>
+                            </div>
                         </div>
                     </div>
                 </div>
