@@ -28,7 +28,7 @@ const DAYS_OF_WEEK = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
 const BOLD_MAP = {
     ' ': ' ', 'a': '𝗮', 'b': '𝗯', 'c': '𝗰', 'd': '𝗱', 'e': '𝗲', 'f': '𝗳', 'g': '𝗴', 'h': '𝗵', 'i': '𝗶', 'j': '𝗷', 'k': '𝗸', 'l': '𝗹', 'm': '𝗺', 'n': '𝗻', 'o': '𝗼', 'p': '𝗽', 'q': '𝗾', 'r': '𝗿', 's': '𝘀', 't': '𝘁', 'u': '𝘂', 'v': '𝘃', 'w': '𝘄', 'x': '𝘅', 'y': '𝘆', 'z': '𝘇',
-    'A': '𝗔', 'B': 'Ｂ', 'C': 'Ｃ', 'D': 'Ｄ', 'E': '𝗘', 'F': '𝗙', 'G': '𝗚', 'H': '𝗛', 'I': '𝗜', 'J': 'Ｊ', 'K': 'Ｋ', 'L': 'Ｌ', 'M': 'Ｍ', 'N': 'Ｎ', 'O': 'Ｏ', 'P': 'Ｐ', 'Q': '𝗤', 'R': 'Ｒ', 'S': 'Ｓ', 'T': 'Ｔ', 'U': '𝗨', 'V': 'Ｖ', 'W': 'Ｗ', 'X': '𝗫', 'Y': 'Ｙ', 'Z': '𝗭'
+    'A': '𝗔', 'B': 'Ｂ', 'C': 'Ｃ', 'D': 'Ｄ', 'E': 'Ｅ', 'F': '𝗙', 'G': 'Ｇ', 'H': '𝗛', 'I': '𝗜', 'J': 'Ｊ', 'K': 'Ｋ', 'L': 'Ｌ', 'M': 'Ｍ', 'N': 'Ｎ', 'O': 'Ｏ', 'P': 'Ｐ', 'Q': '𝗤', 'R': 'Ｒ', 'S': 'Ｓ', 'T': 'Ｔ', 'U': 'Ｕ', 'V': 'Ｖ', 'W': 'Ｗ', 'X': '𝗫', 'Y': '𝗬', 'Z': '𝗭'
 }
 const REVERSE_BOLD_MAP = Object.fromEntries(Object.entries(BOLD_MAP).map(([k, v]) => [v, k]))
 
@@ -48,6 +48,9 @@ export default function App() {
     const [newHabit, setNewHabit] = useState({ name: '', days: [], grad: PALETTE[0].grad, hex: PALETTE[0].hex })
     const [editingHabitId, setEditingHabitId] = useState(null)
     const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, type: null, name: '', data: null })
+
+    // Search queries
+    const [noteSearchQuery, setNoteSearchQuery] = useState("")
 
     // Reading section states
     const [readingCategories, setReadingCategories] = useState(() => JSON.parse(localStorage.getItem('reading_cats') || '["Para mi", "Educativa"]'))
@@ -278,7 +281,7 @@ export default function App() {
 
                 <h1 className="text-lg font-black tracking-tight uppercase italic text-center flex-1">
                     {activePage === 'habitos' && 'MIS HÁBITOS'}
-                    {activePage === 'notes' && 'NOTAS RÁPIDAS'}
+                    {activePage === 'notes' && 'NOTAS'}
                     {activePage === 'lectura' && 'LECTURA'}
                     {activePage === 'actividades' && 'ACTIVIDADES'}
                     {activePage === 'editor' && 'EDITOR DE NOTA'}
@@ -340,62 +343,48 @@ export default function App() {
 
                 {activePage === 'notes' && (
                     <div className="space-y-6">
-                        <div className="p-5 rounded-[2.5rem] bg-gray-100 dark:bg-white/5 border border-indigo-500/10 flex justify-between items-center shadow-inner">
-                            <div className="flex items-center gap-3">
-                                <div className="w-5 h-5 rounded-full shadow-lg" style={{ background: COLORS.GREEN.grad }}></div>
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] font-black uppercase tracking-tight opacity-40 leading-none">Baja prioridad</span>
-                                    <span className="text-lg font-black leading-none">{getNotePriorityCount(COLORS.GREEN.grad)}</span>
-                                </div>
-                            </div>
-                            <div className="w-px h-8 bg-black/5 dark:bg-white/5 mx-2"></div>
-                            <div className="flex items-center gap-3">
-                                <div className="w-5 h-5 rounded-full shadow-lg" style={{ background: COLORS.YELLOW.grad }}></div>
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] font-black uppercase tracking-tight opacity-40 leading-none">Prioridad media</span>
-                                    <span className="text-lg font-black leading-none">{getNotePriorityCount(COLORS.YELLOW.grad)}</span>
-                                </div>
-                            </div>
-                            <div className="w-px h-8 bg-black/5 dark:bg-white/5 mx-2"></div>
-                            <div className="flex items-center gap-3">
-                                <div className="w-5 h-5 rounded-full shadow-lg" style={{ background: COLORS.RED.grad }}></div>
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] font-black uppercase tracking-tight opacity-40 leading-none">Alta prioridad</span>
-                                    <span className="text-lg font-black leading-none">{getNotePriorityCount(COLORS.RED.grad)}</span>
-                                </div>
-                            </div>
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                placeholder="BUSCAR NOTA POR TÍTULO..."
+                                className="w-full bg-gray-100 dark:bg-white/5 border border-indigo-500/10 py-5 px-6 pl-14 rounded-[2rem] outline-none focus:border-indigo-500 font-black uppercase text-[10px] tracking-widest transition-all shadow-inner group-hover:bg-gray-200/50 dark:group-hover:bg-white/10"
+                                value={noteSearchQuery}
+                                onChange={e => setNoteSearchQuery(e.target.value)}
+                            />
+                            <Search size={22} className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500/50 group-hover:text-indigo-500 transition-colors" />
                         </div>
 
                         <div className="grid gap-4">
-                            {notes.map(note => (
-                                <div key={note.id} className={cn("p-5 rounded-3xl bg-gray-50 dark:bg-white/5 border border-indigo-100 dark:border-white/5 transition-all shadow-md relative overflow-hidden", note.done && "opacity-40 grayscale")}
-                                    style={note.grad ? { background: note.grad, border: 'none' } : {}}>
-                                    <div className="relative z-10">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h3 className={cn("font-black uppercase tracking-tight italic", note.grad ? "text-white drop-shadow-md" : "text-indigo-900 dark:text-white")}>{note.title}</h3>
-                                            <div className={cn("flex gap-1", note.grad ? "text-white/80" : "text-gray-400")}>
-                                                <button onClick={() => setNotes(notes.map(n => n.id === note.id ? { ...n, done: !n.done } : n))}>
-                                                    {note.done ? <CheckCircle size={18} /> : <Circle size={18} />}
-                                                </button>
-                                                <button onClick={() => { setEditingNoteId(note.id); setCurrentNote(note); setActivePage('editor'); }}>
-                                                    <Edit2 size={18} />
-                                                </button>
-                                                <button onClick={() => openDeleteConfirm(note.id, 'note', note.title)} className="hover:text-red-500">
-                                                    <Trash2 size={18} />
-                                                </button>
+                            {notes
+                                .filter(note => note.title.toLowerCase().includes(noteSearchQuery.toLowerCase()))
+                                .map(note => (
+                                    <div key={note.id} className={cn("p-5 rounded-3xl bg-gray-50 dark:bg-white/5 border border-indigo-100 dark:border-white/5 transition-all shadow-md relative overflow-hidden", note.done && "opacity-40 grayscale")}
+                                        style={note.grad ? { background: note.grad, border: 'none' } : {}}>
+                                        <div className="relative z-10">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <h3 className={cn("font-black uppercase tracking-tight italic", note.grad ? "text-white drop-shadow-md" : "text-indigo-900 dark:text-white")}>{note.title}</h3>
+                                                <div className={cn("flex gap-1", note.grad ? "text-white/80" : "text-gray-400")}>
+                                                    <button onClick={() => setNotes(notes.map(n => n.id === note.id ? { ...n, done: !n.done } : n))}>
+                                                        {note.done ? <CheckCircle size={18} /> : <Circle size={18} />}
+                                                    </button>
+                                                    <button onClick={() => { setEditingNoteId(note.id); setCurrentNote(note); setActivePage('editor'); }}>
+                                                        <Edit2 size={18} />
+                                                    </button>
+                                                    <button onClick={() => openDeleteConfirm(note.id, 'note', note.title)} className="hover:text-red-500">
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
                                             </div>
+                                            <p className={cn("text-xs leading-relaxed font-bold line-clamp-4", note.grad ? "text-white/90 drop-shadow-sm" : "opacity-60")}>{note.body}</p>
                                         </div>
-                                        <p className={cn("text-xs leading-relaxed font-bold line-clamp-4", note.grad ? "text-white/90 drop-shadow-sm" : "opacity-60")}>{note.body}</p>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
                         </div>
                     </div>
                 )}
 
                 {activePage === 'actividades' && (
                     <div className="space-y-6">
-                        {/* Summary bar copied from notes */}
                         <div className="p-5 rounded-[2.5rem] bg-gray-100 dark:bg-white/5 border border-indigo-500/10 flex justify-between items-center shadow-inner">
                             <div className="flex items-center gap-3">
                                 <div className="w-5 h-5 rounded-full shadow-lg" style={{ background: COLORS.GREEN.grad }}></div>
@@ -505,12 +494,12 @@ export default function App() {
                                 <button onClick={() => applyFmt('list', activePage === 'editor' ? 'note' : 'act')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10"><List size={16} /></button>
                             </div>
 
-                            <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-2xl">
-                                {[4, 0, 5].map(idx => (
+                            <div className="flex flex-wrap gap-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-2xl">
+                                {PALETTE.map((p, idx) => (
                                     <button key={idx}
-                                        onClick={() => activePage === 'editor' ? setCurrentNote({ ...currentNote, grad: PALETTE[idx].grad, hex: PALETTE[idx].hex }) : setCurrentActivity({ ...currentActivity, grad: PALETTE[idx].grad, hex: PALETTE[idx].hex })}
-                                        style={{ background: PALETTE[idx].grad }}
-                                        className={cn("w-6 h-6 rounded-full border-2 transition-all", (activePage === 'editor' ? currentNote.grad : currentActivity.grad) === PALETTE[idx].grad ? "border-indigo-500 scale-110" : "border-transparent")} title={PALETTE[idx].label}></button>
+                                        onClick={() => activePage === 'editor' ? setCurrentNote({ ...currentNote, grad: p.grad, hex: p.hex }) : setCurrentActivity({ ...currentActivity, grad: p.grad, hex: p.hex })}
+                                        style={{ background: p.grad }}
+                                        className={cn("w-6 h-6 rounded-full border-2 transition-all", (activePage === 'editor' ? currentNote.grad : currentActivity.grad) === p.grad ? "border-indigo-500 scale-110" : "border-transparent")} title={p.label}></button>
                                 ))}
                             </div>
                         </div>
@@ -544,7 +533,6 @@ export default function App() {
                 </div>
             )}
 
-            {/* Other Modals (Habit, Cat, File Name) omitted for brevity but they are in the full file */}
             {isHabitModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
