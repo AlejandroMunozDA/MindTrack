@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Flame, Calendar, Moon, Sun, Menu, ArrowLeft, Trash2, Edit2, CheckCircle, Circle, Save, Bold, List, X, AlertTriangle, BarChart2, BookOpen, Book, GraduationCap, Layout, Search, FileText, Download, File, Activity } from 'lucide-react'
+import { Plus, Flame, Calendar, Moon, Sun, Menu, ArrowLeft, Trash2, Edit2, CheckCircle, Circle, Save, Bold, List, X, AlertTriangle, BarChart2, BookOpen, Book, GraduationCap, Layout, Search, FileText, Download, File, Activity, ClipboardList } from 'lucide-react'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -50,6 +50,11 @@ export default function App() {
     const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, type: null, name: '', data: null })
     const [isCalendarOpen, setIsCalendarOpen] = useState(false)
     const [currentCalDate, setCurrentCalDate] = useState(new Date())
+    const [agendaEvents, setAgendaEvents] = useState(() => JSON.parse(localStorage.getItem('mindtrack_agenda') || '{}'))
+    const [isAgendaModalOpen, setIsAgendaModalOpen] = useState(false)
+    const [selectedAgendaDay, setSelectedAgendaDay] = useState(null)
+    const [currentReminder, setCurrentReminder] = useState({ text: '', hex: PALETTE[0].hex, grad: PALETTE[0].grad })
+    const [agendaCalDate, setAgendaCalDate] = useState(new Date())
 
     // Search queries
     const [noteSearchQuery, setNoteSearchQuery] = useState("")
@@ -77,6 +82,7 @@ export default function App() {
     useEffect(() => { localStorage.setItem('habitos_pd', JSON.stringify([...perfectDays])) }, [perfectDays])
     useEffect(() => { localStorage.setItem('reading_cats', JSON.stringify(readingCategories)) }, [readingCategories])
     useEffect(() => { localStorage.setItem('reading_files', JSON.stringify(readingFiles)) }, [readingFiles])
+    useEffect(() => { localStorage.setItem('mindtrack_agenda', JSON.stringify(agendaEvents)) }, [agendaEvents])
 
     useEffect(() => {
         localStorage.setItem('habitos_theme', isDark ? 'dark' : 'light')
@@ -114,6 +120,11 @@ export default function App() {
             }
         } else if (deleteConfirm.type === 'pdf_file') {
             setReadingFiles(readingFiles.filter(f => f.id !== deleteConfirm.id))
+        } else if (deleteConfirm.type === 'agenda_reminder') {
+            const newEvents = { ...agendaEvents }
+            delete newEvents[deleteConfirm.id]
+            setAgendaEvents(newEvents)
+            setIsAgendaModalOpen(false)
         }
         setDeleteConfirm({ isOpen: false, id: null, type: null, name: '' })
     }
@@ -189,6 +200,12 @@ export default function App() {
         setIsEditFileNameModalOpen(false)
         setNewFileName("")
         setEditingFileId(null)
+    }
+
+    const saveAgendaReminder = () => {
+        if (!currentReminder.text.trim()) return alert("Escribe un recordatorio")
+        setAgendaEvents({ ...agendaEvents, [selectedAgendaDay]: currentReminder })
+        setIsAgendaModalOpen(false)
     }
 
     const updatePerfectDays = (currentHabits) => {
@@ -285,7 +302,10 @@ export default function App() {
     return (
         <div className="min-h-screen bg-white dark:bg-[#0f0f14] text-black dark:text-white transition-colors duration-300">
             <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#0f0f14]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between">
-                <div className="w-40 flex items-center gap-1">
+                <div className="w-48 flex items-center gap-1">
+                    <button onClick={() => setActivePage('agenda')} className={cn("p-2 rounded-full transition-colors", activePage === 'agenda' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Agenda">
+                        <ClipboardList size={20} />
+                    </button>
                     <button onClick={() => setActivePage('habitos')} className={cn("p-2 rounded-full transition-colors", activePage === 'habitos' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Hábitos">
                         <Flame size={20} />
                     </button>
@@ -305,6 +325,7 @@ export default function App() {
                     {activePage === 'notes' && 'NOTAS'}
                     {activePage === 'lectura' && 'LECTURA'}
                     {activePage === 'actividades' && 'ACTIVIDADES'}
+                    {activePage === 'agenda' && 'AGENDA'}
                     {activePage === 'editor' && 'EDITOR DE NOTA'}
                     {activePage === 'editor_act' && 'EDITOR DE ACTIVIDAD'}
                 </h1>
@@ -313,18 +334,24 @@ export default function App() {
                     <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-transform active:scale-90">
                         {isDark ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
-                    {activePage === 'habitos' && (
-                        <button onClick={() => setIsCalendarOpen(true)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-indigo-500 transition-transform active:scale-90" title="Calendario">
+                    {(activePage === 'habitos' || activePage === 'agenda') && (
+                        <button onClick={() => activePage === 'habitos' ? setIsCalendarOpen(true) : setAgendaCalDate(new Date())} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-indigo-500 transition-transform active:scale-90" title={activePage === 'habitos' ? "Historial" : "Ir a hoy"}>
                             <Calendar size={20} />
                         </button>
                     )}
-                    {(activePage === 'habitos' || activePage === 'notes' || activePage === 'lectura' || activePage === 'actividades') && (
+                    {(activePage === 'habitos' || activePage === 'notes' || activePage === 'lectura' || activePage === 'actividades' || activePage === 'agenda') && (
                         <button
                             onClick={() => {
                                 if (activePage === 'habitos') { setEditingHabitId(null); setNewHabit({ name: '', days: [], grad: PALETTE[0].grad, hex: PALETTE[0].hex }); setIsHabitModalOpen(true); }
                                 else if (activePage === 'notes') { setEditingNoteId(null); setCurrentNote({ title: '', body: '', grad: COLORS.GREEN.grad, hex: COLORS.GREEN.hex }); setActivePage('editor'); }
                                 else if (activePage === 'actividades') { setEditingActivityId(null); setCurrentActivity({ title: '', body: '', grad: COLORS.GREEN.grad, hex: COLORS.GREEN.hex }); setActivePage('editor_act'); }
                                 else if (activePage === 'lectura') { fileInputRef.current?.click(); }
+                                else if (activePage === 'agenda') {
+                                    const today = new Date().toISOString().split('T')[0];
+                                    setSelectedAgendaDay(today);
+                                    setCurrentReminder(agendaEvents[today] || { text: '', hex: PALETTE[0].hex, grad: PALETTE[0].grad });
+                                    setIsAgendaModalOpen(true);
+                                }
                             }}
                             className="p-2 rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 active:scale-90"
                         >
@@ -595,12 +622,77 @@ export default function App() {
                         </div>
                     </div>
                 )}
+                {activePage === 'agenda' && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex flex-col">
+                                <h2 className="text-4xl font-black uppercase italic tracking-tighter text-indigo-900 dark:text-white leading-none">
+                                    {agendaCalDate.toLocaleString('default', { month: 'long' })}
+                                </h2>
+                                <span className="text-xl font-black opacity-20 uppercase tracking-[0.3em]">{agendaCalDate.getFullYear()}</span>
+                            </div>
+                            <div className="flex gap-2 bg-gray-100 dark:bg-white/5 p-2 rounded-2xl shadow-inner border border-indigo-500/5">
+                                <button onClick={() => setAgendaCalDate(new Date(agendaCalDate.setMonth(agendaCalDate.getMonth() - 1)))} className="p-3 hover:bg-white dark:hover:bg-white/10 rounded-xl transition-all"><ArrowLeft size={18} /></button>
+                                <button onClick={() => setAgendaCalDate(new Date())} className="px-6 py-2 bg-indigo-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95">Hoy</button>
+                                <button onClick={() => setAgendaCalDate(new Date(agendaCalDate.setMonth(agendaCalDate.getMonth() + 1)))} className="p-3 hover:bg-white dark:hover:bg-white/10 rounded-xl transition-all select-none"><div className="rotate-180"><ArrowLeft size={18} /></div></button>
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-white/5 rounded-[3rem] p-8 border border-indigo-500/10 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+                            <div className="grid grid-cols-7 gap-4 mb-8">
+                                {['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'].map(d => (
+                                    <div key={d} className="text-[10px] font-black text-center opacity-30 tracking-widest">{d}</div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-7 gap-4">
+                                {(() => {
+                                    const year = agendaCalDate.getFullYear()
+                                    const month = agendaCalDate.getMonth()
+                                    const firstDay = new Date(year, month, 1).getDay()
+                                    const daysInMonth = new Date(year, month + 1, 0).getDate()
+                                    const days = []
+                                    const today = new Date().toISOString().split('T')[0]
+
+                                    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="aspect-square opacity-0" />)
+
+                                    for (let d = 1; d <= daysInMonth; d++) {
+                                        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                                        const isToday = today === dateStr
+                                        const event = agendaEvents[dateStr]
+
+                                        days.push(
+                                            <div key={d}
+                                                onClick={() => {
+                                                    setSelectedAgendaDay(dateStr);
+                                                    setCurrentReminder(event || { text: '', hex: PALETTE[0].hex, grad: PALETTE[0].grad });
+                                                    setIsAgendaModalOpen(true);
+                                                }}
+                                                className={cn(
+                                                    "aspect-square rounded-3xl p-3 border transition-all cursor-pointer relative overflow-hidden flex flex-col items-center justify-between group",
+                                                    isToday ? "bg-indigo-500/5 border-indigo-500 shadow-lg" : "bg-gray-50/50 dark:bg-white/[0.02] border-indigo-500/5 hover:bg-white dark:hover:bg-white/10 hover:shadow-xl hover:-translate-y-1"
+                                                )}>
+                                                <span className={cn("text-sm font-black transition-all", isToday ? "text-indigo-500 scale-110" : "opacity-40")}>{d}</span>
+                                                {event && (
+                                                    <div className="w-full flex justify-center pb-1">
+                                                        <div className="w-3/4 h-2 rounded-full shadow-lg animate-in zoom-in duration-300 group-hover:scale-110 transition-transform" style={{ background: event.grad }}></div>
+                                                    </div>
+                                                )}
+                                                {isToday && <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping"></div>}
+                                            </div>
+                                        )
+                                    }
+                                    return days
+                                })()}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
 
             {/* SHARED DELETE MODAL */}
             {deleteConfirm.isOpen && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-150">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-xs rounded-[40px] p-10 shadow-2xl text-center">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-150">
+                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-xs rounded-[40px] p-10 shadow-2xl text-center border border-white/5">
                         <div className="bg-red-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle size={40} className="text-red-500" /></div>
                         <h2 className="text-xl font-black uppercase italic tracking-tighter mb-2">¿Eliminar?</h2>
                         <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">Estás a punto de borrar <span className="text-red-500">"{deleteConfirm.name}"</span>.</p>
@@ -715,6 +807,39 @@ export default function App() {
                             <div className="flex gap-4">
                                 <button onClick={() => setCurrentCalDate(new Date(currentCalDate.setMonth(currentCalDate.getMonth() - 1)))} className="hover:text-indigo-500 transition-colors cursor-pointer">Ant</button>
                                 <button onClick={() => setCurrentCalDate(new Date(currentCalDate.setMonth(currentCalDate.getMonth() + 1)))} className="hover:text-indigo-500 transition-colors cursor-pointer">Sig</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {isAgendaModalOpen && (
+                <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-10 shadow-2xl relative overflow-hidden border border-white/5">
+                        <div className="absolute top-0 right-0 p-6"><button onClick={() => setIsAgendaModalOpen(false)}><X size={24} className="text-gray-400 hover:text-white transition-colors" /></button></div>
+                        <h2 className="text-xl font-black uppercase tracking-tighter italic mb-2 tracking-widest text-indigo-500">Recordatorio</h2>
+                        <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mb-8">{new Date(selectedAgendaDay).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+
+                        <div className="space-y-8">
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 block">Contenido</label>
+                                <textarea autoFocus placeholder="¿Qué tienes planeado?" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-6 rounded-3xl outline-none focus:border-indigo-500 font-bold min-h-[120px] shadow-inner resize-none text-sm leading-relaxed"
+                                    value={currentReminder.text} onChange={e => setCurrentReminder({ ...currentReminder, text: e.target.value })} />
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 block">Estilo Visual</label>
+                                <div className="flex flex-wrap gap-3">
+                                    {PALETTE.map((p, idx) => (
+                                        <button key={idx} onClick={() => setCurrentReminder({ ...currentReminder, hex: p.hex, grad: p.grad })} style={{ background: p.grad }} className={cn("w-10 h-10 rounded-2xl border-4 transition-all scale-95", currentReminder.grad === p.grad ? "border-indigo-500 scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100 hover:scale-105")}></button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 pt-4">
+                                <button onClick={saveAgendaReminder} className="w-full py-5 bg-indigo-500 text-white rounded-[1.5rem] font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all">GUARDAR</button>
+                                {agendaEvents[selectedAgendaDay] && (
+                                    <button onClick={() => openDeleteConfirm(selectedAgendaDay, 'agenda_reminder', agendaEvents[selectedAgendaDay].text)} className="w-full py-4 text-red-500/50 hover:text-red-500 font-black text-[10px] tracking-[0.2em] uppercase transition-all">ELIMINAR RECORDATORIO</button>
+                                )}
                             </div>
                         </div>
                     </div>
