@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Flame, Calendar, Moon, Sun, Menu, ArrowLeft, Trash2, Edit2, CheckCircle, Circle, Save, Bold, List, X, AlertTriangle, BarChart2, BookOpen, Book, GraduationCap, Layout, Search, FileText, Download, File, Activity, ClipboardList } from 'lucide-react'
+import { Plus, Flame, Calendar, Moon, Sun, Menu, ArrowLeft, Trash2, Edit2, CheckCircle, Circle, Save, Bold, List, X, AlertTriangle, BarChart2, BookOpen, Book, GraduationCap, Layout, Search, FileText, Download, File, Activity, ClipboardList, UserCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -331,7 +331,7 @@ export default function App() {
                     {activePage === 'editor_act' && 'EDITOR DE ACTIVIDAD'}
                 </h1>
 
-                <div className="flex gap-2 w-44 justify-end items-center">
+                <div className="flex gap-2 w-52 justify-end items-center">
                     <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-transform active:scale-90">
                         {isDark ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
@@ -359,6 +359,9 @@ export default function App() {
                             <Plus size={20} />
                         </button>
                     )}
+                    <button className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-gray-400 ml-1" title="Cuenta">
+                        <UserCircle size={22} />
+                    </button>
                 </div>
             </header>
 
