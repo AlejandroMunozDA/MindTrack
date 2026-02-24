@@ -51,6 +51,7 @@ export default function App() {
 
     // Search queries
     const [noteSearchQuery, setNoteSearchQuery] = useState("")
+    const [readingSearchQuery, setReadingSearchQuery] = useState("")
 
     // Reading section states
     const [readingCategories, setReadingCategories] = useState(() => JSON.parse(localStorage.getItem('reading_cats') || '["Para mi", "Educativa"]'))
@@ -267,14 +268,17 @@ export default function App() {
     return (
         <div className="min-h-screen bg-white dark:bg-[#0f0f14] text-black dark:text-white transition-colors duration-300">
             <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#0f0f14]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between">
-                <div className="w-32 flex items-center gap-1">
-                    <button onClick={() => setActivePage(activePage === 'habitos' ? 'notes' : 'habitos')} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5">
-                        {activePage === 'habitos' ? <Menu size={20} /> : <div className="bg-indigo-500 text-white font-black h-8 w-8 rounded-lg flex items-center justify-center text-xs shadow-lg">H</div>}
+                <div className="w-40 flex items-center gap-1">
+                    <button onClick={() => setActivePage('habitos')} className={cn("p-2 rounded-full transition-colors", activePage === 'habitos' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Hábitos">
+                        <Flame size={20} />
                     </button>
-                    <button onClick={() => setActivePage('lectura')} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-indigo-500" title="Lectura">
+                    <button onClick={() => setActivePage('notes')} className={cn("p-2 rounded-full transition-colors", activePage === 'notes' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Notas">
+                        <FileText size={20} />
+                    </button>
+                    <button onClick={() => setActivePage('lectura')} className={cn("p-2 rounded-full transition-colors", activePage === 'lectura' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Lectura">
                         <BookOpen size={20} />
                     </button>
-                    <button onClick={() => setActivePage('actividades')} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-indigo-500" title="Actividades">
+                    <button onClick={() => setActivePage('actividades')} className={cn("p-2 rounded-full transition-colors", activePage === 'actividades' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Actividades">
                         <Activity size={20} />
                     </button>
                 </div>
@@ -308,7 +312,7 @@ export default function App() {
                 </div>
             </header>
 
-            <main className="max-w-xl mx-auto p-5 pb-20">
+            <main className={cn("mx-auto p-5 pb-20 transition-all duration-500", activePage === 'lectura' ? "max-w-5xl" : "max-w-xl")}>
                 {activePage === 'habitos' && (
                     <div className="space-y-6">
                         <div className="flex justify-center bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
@@ -441,30 +445,38 @@ export default function App() {
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                         <div className="flex gap-3">
                             <div className="flex-1 relative group">
-                                <input type="text" placeholder="BUSCAR EN LECTURA..." className="w-full bg-gray-100 dark:bg-white/5 border border-indigo-500/10 py-5 px-6 pl-14 rounded-[2rem] outline-none focus:border-indigo-500 font-black uppercase text-[10px] tracking-widest transition-all shadow-inner" />
+                                <input
+                                    type="text"
+                                    placeholder="BUSCAR EN LECTURA..."
+                                    className="w-full bg-gray-100 dark:bg-white/5 border border-indigo-500/10 py-5 px-6 pl-14 rounded-[2rem] outline-none focus:border-indigo-500 font-black uppercase text-[10px] tracking-widest transition-all shadow-inner"
+                                    value={readingSearchQuery}
+                                    onChange={e => setReadingSearchQuery(e.target.value)}
+                                />
                                 <Search size={22} className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500/50" />
                             </div>
                             <button onClick={() => fileInputRef.current?.click()} className="aspect-square w-[60px] flex items-center justify-center bg-indigo-500 text-white rounded-[1.5rem] shadow-xl shadow-indigo-500/30 active:scale-90 transition-all"><Plus size={28} /></button>
                         </div>
 
-                        <div className="flex gap-6 min-h-[450px]">
-                            <div className="flex-1 bg-gray-50 dark:bg-white/5 rounded-[2.5rem] p-6 relative shadow-inner border border-indigo-500/10 h-[500px] overflow-y-auto scrollbar-hide">
+                        <div className="flex gap-6 min-h-[650px]">
+                            <div className="flex-1 bg-gray-50 dark:bg-white/5 rounded-[2.5rem] p-6 relative shadow-inner border border-indigo-500/10 h-[650px] overflow-y-auto scrollbar-hide">
                                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-indigo-500/5">
                                     <h2 className="text-2xl font-black uppercase italic tracking-tighter text-indigo-500">{selectedReadingCat}</h2>
                                 </div>
                                 <div className="space-y-4">
-                                    {readingFiles.filter(f => f.category === selectedReadingCat).map(file => (
-                                        <div key={file.id} className="group flex items-center gap-4 bg-white dark:bg-white/5 p-4 rounded-3xl border border-indigo-500/5 cursor-pointer hover:shadow-lg transition-all"
-                                            onClick={() => { const win = window.open(); win.document.write(`<iframe src="${file.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`); }}>
-                                            <div className="w-12 h-16 bg-red-50 dark:bg-red-500/10 rounded-xl flex items-center justify-center text-red-500 shrink-0 border border-red-500/10"><FileText size={24} /></div>
-                                            <div className="flex-1 min-w-0"><h4 className="font-black text-xs uppercase tracking-tight truncate text-indigo-900 dark:text-white/90">{file.name}</h4><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{file.date}</span></div>
-                                            <div className="flex gap-1">
-                                                <button onClick={(e) => { e.stopPropagation(); setEditingFileId(file.id); setNewFileName(file.name); setIsEditFileNameModalOpen(true); }} className="p-2 text-gray-400 hover:text-indigo-500"><Edit2 size={16} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); downloadFile(file); }} className="p-2 text-gray-400 hover:text-green-500"><Download size={16} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); openDeleteConfirm(file.id, 'pdf_file', file.name); }} className="p-2 text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                    {readingFiles
+                                        .filter(f => f.category === selectedReadingCat && f.name.toLowerCase().includes(readingSearchQuery.toLowerCase()))
+                                        .map(file => (
+                                            <div key={file.id} className="group flex items-center gap-4 bg-white dark:bg-white/5 p-5 rounded-[2rem] border border-indigo-500/5 cursor-pointer hover:shadow-lg transition-all"
+                                                onClick={() => { const win = window.open(); win.document.write(`<iframe src="${file.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`); }}>
+                                                <div className="w-14 h-18 bg-red-50 dark:bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 shrink-0 border border-red-500/10"><FileText size={28} /></div>
+                                                <div className="flex-1 min-w-0"><h4 className="font-black text-[13px] uppercase tracking-tight truncate text-indigo-900 dark:text-white/90">{file.name}</h4><span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{file.date}</span></div>
+                                                <div className="flex gap-1">
+                                                    <button onClick={(e) => { e.stopPropagation(); setEditingFileId(file.id); setNewFileName(file.name); setIsEditFileNameModalOpen(true); }} className="p-2 text-gray-400 hover:text-indigo-500"><Edit2 size={16} /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); downloadFile(file); }} className="p-2 text-gray-400 hover:text-green-500"><Download size={16} /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); openDeleteConfirm(file.id, 'pdf_file', file.name); }} className="p-2 text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
                                 </div>
                             </div>
                             <div className="w-44 flex flex-col gap-3 shrink-0">
@@ -476,6 +488,10 @@ export default function App() {
                                         </button>
                                     </div>
                                 ))}
+                                <button onClick={() => { setEditingCatIndex(null); setNewCatName(""); setIsNewCatModalOpen(true); }} className="w-full mt-4 py-4 bg-gray-100 dark:bg-white/5 border-2 border-dashed border-indigo-500/20 text-indigo-500/50 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2">
+                                    <Plus size={16} />
+                                    NUEVA SECCIÓN
+                                </button>
                             </div>
                         </div>
                     </div>
