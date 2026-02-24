@@ -59,6 +59,7 @@ export default function App() {
     // Search queries
     const [noteSearchQuery, setNoteSearchQuery] = useState("")
     const [readingSearchQuery, setReadingSearchQuery] = useState("")
+    const [activityPriorityFilter, setActivityPriorityFilter] = useState(null)
 
     // Reading section states
     const [readingCategories, setReadingCategories] = useState(() => JSON.parse(localStorage.getItem('reading_cats') || '["Para mi", "Educativa"]'))
@@ -480,51 +481,64 @@ export default function App() {
                 {activePage === 'actividades' && (
                     <div className="space-y-6">
                         <div className="p-5 rounded-[2.5rem] bg-gray-100 dark:bg-white/5 border border-indigo-500/10 flex justify-between items-center shadow-inner">
-                            <div className="flex items-center gap-3">
+                            <button onClick={() => setActivityPriorityFilter(activityPriorityFilter === COLORS.GREEN.grad ? null : COLORS.GREEN.grad)}
+                                className={cn("flex items-center gap-3 transition-all p-2 rounded-2xl", activityPriorityFilter === COLORS.GREEN.grad ? "bg-white dark:bg-white/10 shadow-md scale-105" : "hover:bg-black/5 dark:hover:bg-white/5")}>
                                 <div className="w-5 h-5 rounded-full shadow-lg" style={{ background: COLORS.GREEN.grad }}></div>
-                                <div className="flex flex-col">
+                                <div className="flex flex-col items-start text-left">
                                     <span className="text-[9px] font-black uppercase tracking-tight opacity-40 leading-none">Baja prioridad</span>
                                     <span className="text-lg font-black leading-none">{getActivityPriorityCount(COLORS.GREEN.grad)}</span>
                                 </div>
-                            </div>
-                            <div className="w-px h-8 bg-black/5 dark:bg-white/5 mx-2"></div>
-                            <div className="flex items-center gap-3">
+                            </button>
+                            <div className="w-px h-8 bg-black/5 dark:bg-white/5 mx-1"></div>
+                            <button onClick={() => setActivityPriorityFilter(activityPriorityFilter === COLORS.YELLOW.grad ? null : COLORS.YELLOW.grad)}
+                                className={cn("flex items-center gap-3 transition-all p-2 rounded-2xl", activityPriorityFilter === COLORS.YELLOW.grad ? "bg-white dark:bg-white/10 shadow-md scale-105" : "hover:bg-black/5 dark:hover:bg-white/5")}>
                                 <div className="w-5 h-5 rounded-full shadow-lg" style={{ background: COLORS.YELLOW.grad }}></div>
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] font-black uppercase tracking-tight opacity-40 leading-none">Prioridad media</span>
+                                <div className="flex flex-col items-start text-left">
+                                    <span className="text-[9px] font-black uppercase tracking-tight opacity-40 leading-none">Media prioridad</span>
                                     <span className="text-lg font-black leading-none">{getActivityPriorityCount(COLORS.YELLOW.grad)}</span>
                                 </div>
-                            </div>
-                            <div className="w-px h-8 bg-black/5 dark:bg-white/5 mx-2"></div>
-                            <div className="flex items-center gap-3">
+                            </button>
+                            <div className="w-px h-8 bg-black/5 dark:bg-white/5 mx-1"></div>
+                            <button onClick={() => setActivityPriorityFilter(activityPriorityFilter === COLORS.RED.grad ? null : COLORS.RED.grad)}
+                                className={cn("flex items-center gap-3 transition-all p-2 rounded-2xl", activityPriorityFilter === COLORS.RED.grad ? "bg-white dark:bg-white/10 shadow-md scale-105" : "hover:bg-black/5 dark:hover:bg-white/5")}>
                                 <div className="w-5 h-5 rounded-full shadow-lg" style={{ background: COLORS.RED.grad }}></div>
-                                <div className="flex flex-col">
+                                <div className="flex flex-col items-start text-left">
                                     <span className="text-[9px] font-black uppercase tracking-tight opacity-40 leading-none">Alta prioridad</span>
                                     <span className="text-lg font-black leading-none">{getActivityPriorityCount(COLORS.RED.grad)}</span>
                                 </div>
-                            </div>
+                            </button>
                         </div>
 
+                        {activityPriorityFilter && (
+                            <div className="flex justify-center">
+                                <button onClick={() => setActivityPriorityFilter(null)} className="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 flex items-center gap-2 bg-indigo-500/5 px-4 py-2 rounded-full border border-indigo-500/10">
+                                    <X size={14} /> Quitar filtro
+                                </button>
+                            </div>
+                        )}
+
                         <div className="grid gap-3">
-                            {activities.map(act => (
-                                <div key={act.id} className={cn("p-4 rounded-2xl flex items-center justify-between transition-all", act.done ? "opacity-40 grayscale scale-[0.98]" : "shadow-md")}
-                                    style={{ background: act.done ? 'rgba(0,0,0,0.05)' : act.grad }}>
-                                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                                        <button onClick={() => setActivities(activities.map(a => a.id === act.id ? { ...a, done: !a.done } : a))}
-                                            className="w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center shrink-0 text-white">
-                                            {act.done ? <CheckCircle size={22} strokeWidth={3} /> : <div className="w-5 h-5 border-2 border-white/50 rounded-md"></div>}
-                                        </button>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-black text-white text-sm uppercase tracking-tight mb-0.5 truncate drop-shadow-sm">{act.title}</h4>
-                                            <p className="text-[10px] text-white/70 font-bold truncate tracking-tight">{act.body}</p>
+                            {activities
+                                .filter(act => !activityPriorityFilter || act.grad === activityPriorityFilter)
+                                .map(act => (
+                                    <div key={act.id} className={cn("p-4 rounded-2xl flex items-center justify-between transition-all", act.done ? "opacity-40 grayscale scale-[0.98]" : "shadow-md")}
+                                        style={{ background: act.done ? 'rgba(0,0,0,0.05)' : act.grad }}>
+                                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                                            <button onClick={() => setActivities(activities.map(a => a.id === act.id ? { ...a, done: !a.done } : a))}
+                                                className="w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center shrink-0 text-white">
+                                                {act.done ? <CheckCircle size={22} strokeWidth={3} /> : <div className="w-5 h-5 border-2 border-white/50 rounded-md"></div>}
+                                            </button>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-black text-white text-sm uppercase tracking-tight mb-0.5 truncate drop-shadow-sm">{act.title}</h4>
+                                                <p className="text-[10px] text-white/70 font-bold truncate tracking-tight">{act.body}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-1 ml-4 shrink-0">
+                                            <button onClick={() => { setEditingActivityId(act.id); setCurrentActivity(act); setActivePage('editor_act'); }} className="p-2 text-white/70 hover:text-white"><Edit2 size={16} /></button>
+                                            <button onClick={() => openDeleteConfirm(act.id, 'activity', act.title)} className="p-2 text-white/50 hover:text-white hover:text-red-300"><Trash2 size={16} /></button>
                                         </div>
                                     </div>
-                                    <div className="flex gap-1 ml-4 shrink-0">
-                                        <button onClick={() => { setEditingActivityId(act.id); setCurrentActivity(act); setActivePage('editor_act'); }} className="p-2 text-white/70 hover:text-white"><Edit2 size={16} /></button>
-                                        <button onClick={() => openDeleteConfirm(act.id, 'activity', act.title)} className="p-2 text-white/50 hover:text-white hover:text-red-300"><Trash2 size={16} /></button>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
                             {activities.length === 0 && <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-sm">Sin actividades</div>}
                         </div>
                     </div>
