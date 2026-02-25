@@ -72,8 +72,8 @@ export default function App() {
     const [activityPriorityFilter, setActivityPriorityFilter] = useState(null)
 
     // Reading section states
-    const [readingCategories, setReadingCategories] = useState(() => JSON.parse(localStorage.getItem('reading_cats') || '["Para mi", "Educativa"]'))
-    const [selectedReadingCat, setSelectedReadingCat] = useState("Para mi")
+    const [readingCategories, setReadingCategories] = useState(() => JSON.parse(localStorage.getItem('reading_cats') || '["Educativo", "Para mi"]'))
+    const [selectedReadingCat, setSelectedReadingCat] = useState("Educativo")
     const [isNewCatModalOpen, setIsNewCatModalOpen] = useState(false)
     const [newCatName, setNewCatName] = useState("")
     const [editingCatIndex, setEditingCatIndex] = useState(null)
@@ -337,9 +337,11 @@ export default function App() {
 
     const downloadFile = (file) => {
         const link = document.createElement('a')
-        link.href = file.data
-        link.download = file.name
+        link.href = file.data || file.file_url
+        link.download = file.name || 'documento.pdf'
+        document.body.appendChild(link)
         link.click()
+        document.body.removeChild(link)
     }
 
     const saveHabit = async () => {
@@ -676,24 +678,17 @@ export default function App() {
                     <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-transform active:scale-90">
                         {isDark ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
-                    {(activePage === 'habitos' || activePage === 'agenda') && (
-                        <button onClick={() => activePage === 'habitos' ? setIsCalendarOpen(true) : setAgendaCalDate(new Date())} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-indigo-500 transition-transform active:scale-90" title={activePage === 'habitos' ? "Historial" : "Ir a hoy"}>
+                    {activePage === 'habitos' && (
+                        <button onClick={() => setIsCalendarOpen(true)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-indigo-500 transition-transform active:scale-90" title="Historial">
                             <Calendar size={20} />
                         </button>
                     )}
-                    {(activePage === 'habitos' || activePage === 'notes' || activePage === 'lectura' || activePage === 'actividades' || activePage === 'agenda') && (
+                    {(activePage === 'habitos' || activePage === 'notes' || activePage === 'actividades') && (
                         <button
                             onClick={() => {
                                 if (activePage === 'habitos') { setEditingHabitId(null); setNewHabit({ name: '', days: [], grad: PALETTE[0].grad, hex: PALETTE[0].hex }); setIsHabitModalOpen(true); }
                                 else if (activePage === 'notes') { setEditingNoteId(null); setCurrentNote({ title: '', body: '', grad: COLORS.GREEN.grad, hex: COLORS.GREEN.hex }); setActivePage('editor'); }
                                 else if (activePage === 'actividades') { setEditingActivityId(null); setCurrentActivity({ title: '', body: '', grad: COLORS.GREEN.grad, hex: COLORS.GREEN.hex }); setActivePage('editor_act'); }
-                                else if (activePage === 'lectura') { fileInputRef.current?.click(); }
-                                else if (activePage === 'agenda') {
-                                    const today = new Date().toISOString().split('T')[0];
-                                    setSelectedAgendaDay(today);
-                                    setCurrentReminder(agendaEvents[today] || { text: '', hex: PALETTE[0].hex, grad: PALETTE[0].grad });
-                                    setIsAgendaModalOpen(true);
-                                }
                             }}
                             className="p-2 rounded-full bg-indigo-500 text-white shadow-lg shadow-indigo-500/30 active:scale-90"
                         >
@@ -918,14 +913,51 @@ export default function App() {
                                     {readingFiles
                                         .filter(f => f.category === selectedReadingCat && f.name.toLowerCase().includes(readingSearchQuery.toLowerCase()))
                                         .map(file => (
-                                            <div key={file.id} className="group flex items-center gap-4 bg-white dark:bg-white/5 p-5 rounded-[2rem] border border-indigo-500/5 cursor-pointer hover:shadow-lg transition-all"
-                                                onClick={() => { const win = window.open(); win.document.write(`<iframe src="${file.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`); }}>
-                                                <div className="w-14 h-18 bg-red-50 dark:bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500 shrink-0 border border-red-500/10"><FileText size={28} /></div>
-                                                <div className="flex-1 min-w-0"><h4 className="font-black text-[13px] uppercase tracking-tight truncate text-indigo-900 dark:text-white/90">{file.name}</h4><span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{file.date}</span></div>
-                                                <div className="flex gap-1">
-                                                    <button onClick={(e) => { e.stopPropagation(); setEditingFileId(file.id); setNewFileName(file.name); setIsEditFileNameModalOpen(true); }} className="p-2 text-gray-400 hover:text-indigo-500"><Edit2 size={16} /></button>
-                                                    <button onClick={(e) => { e.stopPropagation(); downloadFile(file); }} className="p-2 text-gray-400 hover:text-green-500"><Download size={16} /></button>
-                                                    <button onClick={(e) => { e.stopPropagation(); openDeleteConfirm(file.id, 'pdf_file', file.name); }} className="p-2 text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+                                            <div key={file.id}
+                                                className="group flex items-center bg-white dark:bg-white/5 p-4 rounded-[2.5rem] border border-indigo-500/5 cursor-pointer hover:shadow-2xl hover:bg-indigo-500/[0.02] transition-all relative overflow-hidden"
+                                                onClick={() => { const win = window.open(); win.document.write(`<iframe src="${file.data || file.file_url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`); }}>
+                                                {/* Representación de Portada (Thumbnail) */}
+                                                <div className="w-16 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex flex-col items-center justify-center text-white shrink-0 border border-white/20 shadow-lg relative overflow-hidden group-hover:scale-105 transition-transform">
+                                                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+                                                    <FileText size={24} className="mb-1 drop-shadow-md" />
+                                                    <span className="text-[6px] font-black uppercase tracking-[0.2em] opacity-80">PDF READER</span>
+                                                </div>
+
+                                                <div className="ml-6 flex-1 min-w-0">
+                                                    <h4 className="font-black text-sm md:text-base uppercase tracking-tight truncate text-indigo-900 dark:text-white/90 group-hover:text-indigo-500 transition-colors">
+                                                        {file.name}
+                                                    </h4>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-md">
+                                                            {file.date}
+                                                        </span>
+                                                        <span className="text-[9px] font-bold text-indigo-500/50 uppercase tracking-widest italic">Archivo PDF</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Iconos de Acción */}
+                                                <div className="flex gap-2 ml-4 px-2">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setEditingFileId(file.id); setNewFileName(file.name); setIsEditFileNameModalOpen(true); }}
+                                                        className="p-3 text-gray-400 hover:text-indigo-500 hover:bg-indigo-500/10 rounded-xl transition-all active:scale-90"
+                                                        title="Editar nombre"
+                                                    >
+                                                        <Edit2 size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); downloadFile(file); }}
+                                                        className="p-3 text-gray-400 hover:text-green-500 hover:bg-green-500/10 rounded-xl transition-all active:scale-90"
+                                                        title="Descargar"
+                                                    >
+                                                        <Download size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); openDeleteConfirm(file.id, 'pdf_file', file.name); }}
+                                                        className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all active:scale-90"
+                                                        title="Eliminar"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
                                                 </div>
                                             </div>
                                         ))}
@@ -934,9 +966,33 @@ export default function App() {
                             <div className="w-44 flex flex-col gap-3 shrink-0">
                                 {readingCategories.map((cat, index) => (
                                     <div key={cat} className="group relative">
-                                        <button onClick={() => setSelectedReadingCat(cat)} className={cn("w-full px-5 py-5 rounded-[1.5rem] font-black text-[11px] uppercase tracking-tighter transition-all flex items-center justify-between", selectedReadingCat === cat ? "bg-indigo-500 text-white shadow-xl -translate-x-2" : "bg-gray-100 dark:bg-white/5 text-gray-500 hover:-translate-x-1")}>
-                                            <span className="truncate pr-4">{cat}</span>
-                                            {selectedReadingCat === cat && <div className="flex gap-1.5 shrink-0"><button onClick={(e) => { e.stopPropagation(); setEditingCatIndex(index); setNewCatName(cat); setIsNewCatModalOpen(true); }}><Edit2 size={14} /></button><button onClick={(e) => { e.stopPropagation(); openDeleteConfirm(index, 'reading_cat', cat); }}><Trash2 size={14} /></button></div>}
+                                        <button
+                                            onClick={() => setSelectedReadingCat(cat)}
+                                            className={cn(
+                                                "w-full px-5 py-6 rounded-[2rem] font-black text-[11px] uppercase tracking-tighter transition-all flex flex-col gap-4 border",
+                                                selectedReadingCat === cat
+                                                    ? "bg-indigo-500 text-white shadow-2xl shadow-indigo-500/30 border-white/20 -translate-x-2"
+                                                    : "bg-white dark:bg-white/5 text-gray-400 border-indigo-500/5 hover:-translate-x-1 hover:border-indigo-500/20 shadow-md hover:shadow-xl"
+                                            )}
+                                        >
+                                            <div className="flex items-center justify-between w-full">
+                                                <span className="truncate pr-2">{cat}</span>
+                                                <div className="flex gap-2 shrink-0">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setEditingCatIndex(index); setNewCatName(cat); setIsNewCatModalOpen(true); }}
+                                                        className={cn("p-1.5 rounded-lg transition-all", selectedReadingCat === cat ? "bg-white/20 text-white hover:bg-white/30" : "bg-gray-100 dark:bg-white/10 text-gray-400 hover:text-indigo-500")}
+                                                    >
+                                                        <Edit2 size={12} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); openDeleteConfirm(index, 'reading_cat', cat); }}
+                                                        className={cn("p-1.5 rounded-lg transition-all", selectedReadingCat === cat ? "bg-white/20 text-white hover:bg-red-200" : "bg-gray-100 dark:bg-white/10 text-gray-400 hover:text-red-500")}
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className={cn("w-full h-1 rounded-full", selectedReadingCat === cat ? "bg-white/30" : "bg-indigo-500/10")}></div>
                                         </button>
                                     </div>
                                 ))}
@@ -963,7 +1019,7 @@ export default function App() {
                             </div>
 
                             <div className="flex flex-wrap gap-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-2xl">
-                                {PALETTE.map((p, idx) => (
+                                {(activePage === 'editor_act' ? Object.values(COLORS) : PALETTE).map((p, idx) => (
                                     <button key={idx}
                                         onClick={() => activePage === 'editor' ? setCurrentNote({ ...currentNote, grad: p.grad, hex: p.hex }) : setCurrentActivity({ ...currentActivity, grad: p.grad, hex: p.hex })}
                                         style={{ background: p.grad }}
