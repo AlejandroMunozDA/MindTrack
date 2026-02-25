@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { supabase } from './lib/supabase'
 import { Plus, Flame, Calendar, Moon, Sun, Menu, ArrowLeft, Trash2, Edit2, CheckCircle, Circle, Save, Bold, List, X, AlertTriangle, BarChart2, BookOpen, Book, GraduationCap, Layout, Search, FileText, Download, File, Activity, ClipboardList, UserCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -39,6 +40,15 @@ export default function App() {
     const [perfectDays, setPerfectDays] = useState(() => new Set(JSON.parse(localStorage.getItem('habitos_pd') || '[]')))
     const [isDark, setIsDark] = useState(() => localStorage.getItem('habitos_theme') !== 'light')
     const [activePage, setActivePage] = useState('habitos')
+    const [user, setUser] = useState(null)
+    const [session, setSession] = useState(null)
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+    const [isAccountModalOpen, setIsAccountModalOpen] = useState(false)
+    const [showSuccessModal, setShowSuccessModal] = useState(false)
+    const [authMode, setAuthMode] = useState('login') // 'login' or 'signup'
+    const [authData, setAuthData] = useState({ email: '', password: '', fullName: '' })
+    const [authError, setAuthError] = useState(null)
+    const [isLoading, setIsLoading] = useState(true)
     const [habitFilter, setHabitFilter] = useState('all')
     const [currentNote, setCurrentNote] = useState({ title: '', body: '', grad: COLORS.GREEN.grad, hex: COLORS.GREEN.hex })
     const [currentActivity, setCurrentActivity] = useState({ title: '', body: '', grad: COLORS.GREEN.grad, hex: COLORS.GREEN.hex })
@@ -96,13 +106,172 @@ export default function App() {
         }
     }, [isDark])
 
-    const toggleHabit = (id) => {
-        const newHabits = habits.map(h => h.id === id ? { ...h, completed: !h.completed } : h)
-        setHabits(newHabits)
-        updatePerfectDays(newHabits)
+    useEffect(() => {
+        const getSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession()
+            setSession(session)
+            setUser(session?.user || null)
+            setIsLoading(false)
+        }
+        getSession()
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session)
+            setUser(session?.user || null)
+        })
+
+        return () => subscription.unsubscribe()
+    }, [])
+
+    useEffect(() => {
+        if (user) {
+            fetchUserData()
+        }
+    }, [user])
+
+    const fetchUserData = async () => {
+        if (!user) return
+
+        const [
+            { data: dbHabits },
+            { data: dbPerfectDays },
+            { data: dbNotes },
+            { data: dbActivities },
+            { data: dbAgenda },
+            { data: dbCategories },
+            { data: dbFiles }
+        ] = await Promise.all([
+            supabase.from('habits').select('*').order('created_at', { ascending: true }),
+            supabase.from('perfect_days').select('date'),
+            supabase.from('notes').select('*').order('created_at', { ascending: false }),
+            supabase.from('activities').select('*').order('created_at', { ascending: false }),
+            supabase.from('agenda').select('*'),
+            supabase.from('reading_categories').select('*'),
+            supabase.from('reading_files').select('*')
+        ])
+
+        if (dbHabits) setHabits(dbHabits)
+        if (dbPerfectDays) setPerfectDays(new Set(dbPerfectDays.map(d => d.date)))
+        if (dbNotes) setNotes(dbNotes)
+        if (dbActivities) setActivities(dbActivities)
+        if (dbAgenda) {
+            const agendaObj = {}
+            dbAgenda.forEach(item => { agendaObj[item.date] = { text: item.text, grad: item.grad, hex: item.hex } })
+            setAgendaEvents(agendaObj)
+        }
+        if (dbCategories) setReadingCategories(dbCategories.map(c => c.name))
+        if (dbFiles) setReadingFiles(dbFiles)
     }
 
-    const executeDelete = () => {
+    const handleAuth = async (e) => {
+        e.preventDefault()
+        setAuthError(null)
+
+        // Usamos el nombre de usuario como identificador único para permitir correos repetidos
+        const identifier = `${authData.fullName.trim().toLowerCase()}@mindtrack.user`
+
+        if (authMode === 'signup') {
+            if (authData.password.length < 6) {
+                setAuthError("La contraseña debe tener al menos 6 caracteres")
+                return
+            }
+            if (!authData.fullName.trim()) {
+                setAuthError("El nombre de usuario es obligatorio")
+                return
+            }
+
+            const { data, error } = await supabase.auth.signUp({
+                email: identifier,
+                password: authData.password,
+                options: {
+                    data: {
+                        full_name: authData.fullName,
+                        real_email: authData.email
+                    }
+                }
+            })
+
+            if (error) {
+                if (error.message.includes("User already registered")) {
+                    setAuthError("Este nombre de usuario ya está en uso. Por favor elige otro.")
+                } else if (error.message.includes("Email rate limit exceeded")) {
+                    setAuthError("Límite de correos excedido. Si eres el administrador, desactiva 'Confirm Email' en el Dashboard de Supabase para registrarte instantáneamente.")
+                } else {
+                    setAuthError(error.message)
+                }
+            } else {
+                setShowSuccessModal(true)
+                setAuthData({ email: '', password: '', fullName: '' })
+            }
+        } else {
+            // Para el login el usuario pone su NOMBRE en el campo email o fullName
+            // Asumimos que el usuario sabe que entra con su nombre
+            const loginUsername = authData.fullName || authData.email.split('@')[0]
+            const loginIdentifier = `${loginUsername.trim().toLowerCase()}@mindtrack.user`
+
+            const { error } = await supabase.auth.signInWithPassword({
+                email: loginIdentifier,
+                password: authData.password
+            })
+
+            if (error) {
+                if (error.message.includes("Invalid login credentials")) {
+                    setAuthError("Usuario o contraseña incorrectos.")
+                } else {
+                    setAuthError(error.message)
+                }
+            } else {
+                setIsAuthModalOpen(false)
+                setIsAccountModalOpen(false)
+                setActivePage('habitos')
+                setAuthData({ email: '', password: '', fullName: '' })
+            }
+        }
+    }
+
+    const toggleHabit = async (id) => {
+        const h = habits.find(x => x.id === id)
+        const updatedHabits = habits.map(h => h.id === id ? { ...h, completed: !h.completed } : h)
+        setHabits(updatedHabits)
+
+        if (user) {
+            await supabase.from('habits').update({ completed: !h.completed }).eq('id', id)
+            updatePerfectDays(updatedHabits)
+        } else {
+            updatePerfectDays(updatedHabits)
+        }
+    }
+
+    const toggleNoteDone = async (id) => {
+        const newNotes = notes.map(n => n.id === id ? { ...n, done: !n.done } : n)
+        setNotes(newNotes)
+        if (user) await supabase.from('notes').update({ done: !notes.find(n => n.id === id).done }).eq('id', id)
+    }
+
+    const toggleActivityDone = async (id) => {
+        const newActivities = activities.map(a => a.id === id ? { ...a, done: !a.done } : a)
+        setActivities(newActivities)
+        if (user) await supabase.from('activities').update({ done: !activities.find(a => a.id === id).done }).eq('id', id)
+    }
+
+    const executeDelete = async () => {
+        if (user) {
+            if (deleteConfirm.type === 'habit') {
+                await supabase.from('habits').delete().eq('id', deleteConfirm.id)
+            } else if (deleteConfirm.type === 'note') {
+                await supabase.from('notes').delete().eq('id', deleteConfirm.id)
+            } else if (deleteConfirm.type === 'activity') {
+                await supabase.from('activities').delete().eq('id', deleteConfirm.id)
+            } else if (deleteConfirm.type === 'agenda_reminder') {
+                await supabase.from('agenda').delete().match({ user_id: user.id, date: deleteConfirm.id })
+            } else if (deleteConfirm.type === 'reading_cat') {
+                await supabase.from('reading_categories').delete().eq('user_id', user.id).eq('name', deleteConfirm.name)
+            } else if (deleteConfirm.type === 'pdf_file') {
+                await supabase.from('reading_files').delete().eq('id', deleteConfirm.id)
+            }
+        }
+
+        // Retrocompatibilidad local
         if (deleteConfirm.type === 'habit') {
             const newHabits = habits.filter(h => h.id !== deleteConfirm.id)
             setHabits(newHabits)
@@ -139,15 +308,28 @@ export default function App() {
         if (!file || file.type !== 'application/pdf') return alert("Por favor, selecciona un archivo PDF válido")
 
         const reader = new FileReader()
-        reader.onload = (event) => {
-            const newFile = {
-                id: Date.now(),
+        reader.onload = async (event) => {
+            const fileData = {
                 name: file.name,
                 category: selectedReadingCat,
                 data: event.target.result,
                 date: new Date().toLocaleDateString()
             }
-            setReadingFiles([...readingFiles, newFile])
+
+            let savedFile;
+            if (user) {
+                const { data } = await supabase.from('reading_files').insert([{
+                    user_id: user.id,
+                    name: fileData.name,
+                    category: fileData.category,
+                    file_url: fileData.data, // Por ahora guardamos base64 en la DB para simplificar sin storage buckets complejos
+                    file_name_storage: file.name,
+                    date: fileData.date
+                }]).select()
+                savedFile = data[0]
+            }
+
+            setReadingFiles([...readingFiles, savedFile || { id: Date.now(), ...fileData }])
         }
         reader.readAsDataURL(file)
         e.target.value = ""
@@ -160,14 +342,26 @@ export default function App() {
         link.click()
     }
 
-    const saveHabit = () => {
+    const saveHabit = async () => {
         if (!newHabit.name.trim()) return alert('Nombre obligatorio')
         if (newHabit.days.length === 0) return alert('Selecciona días')
 
+        let savedHabit;
+        if (user) {
+            const habitData = { ...newHabit, user_id: user.id, completed: false }
+            if (editingHabitId) {
+                const { data } = await supabase.from('habits').update(newHabit).eq('id', editingHabitId).select()
+                savedHabit = data[0]
+            } else {
+                const { data } = await supabase.from('habits').insert([habitData]).select()
+                savedHabit = data[0]
+            }
+        }
+
         if (editingHabitId) {
-            setHabits(habits.map(h => h.id === editingHabitId ? { ...h, ...newHabit } : h))
+            setHabits(habits.map(h => h.id === editingHabitId ? (savedHabit || { ...h, ...newHabit }) : h))
         } else {
-            const h = { id: Date.now(), ...newHabit, completed: false }
+            const h = savedHabit || { id: Date.now(), ...newHabit, completed: false }
             setHabits([...habits, h])
         }
         setIsHabitModalOpen(false)
@@ -175,8 +369,17 @@ export default function App() {
         setNewHabit({ name: '', days: [], grad: PALETTE[0].grad, hex: PALETTE[0].hex })
     }
 
-    const saveReadingCategory = () => {
+    const saveReadingCategory = async () => {
         if (!newCatName.trim()) return alert("Ingresa un nombre para la sección")
+
+        if (user) {
+            if (editingCatIndex !== null) {
+                const oldName = readingCategories[editingCatIndex];
+                await supabase.from('reading_categories').update({ name: newCatName.trim() }).eq('user_id', user.id).eq('name', oldName)
+            } else {
+                await supabase.from('reading_categories').insert([{ user_id: user.id, name: newCatName.trim() }])
+            }
+        }
 
         if (editingCatIndex !== null) {
             const oldName = readingCategories[editingCatIndex];
@@ -195,31 +398,73 @@ export default function App() {
         setIsNewCatModalOpen(false)
     }
 
-    const saveFileName = () => {
+    const saveFileName = async () => {
         if (!newFileName.trim()) return alert("El nombre no puede estar vacío")
-        setReadingFiles(readingFiles.map(f => f.id === editingFileId ? { ...f, name: newFileName.trim().endsWith('.pdf') ? newFileName.trim() : newFileName.trim() + '.pdf' } : f))
+        const finalName = newFileName.trim().endsWith('.pdf') ? newFileName.trim() : newFileName.trim() + '.pdf';
+
+        if (user) {
+            await supabase.from('reading_files').update({ name: finalName }).eq('id', editingFileId)
+        }
+
+        setReadingFiles(readingFiles.map(f => f.id === editingFileId ? { ...f, name: finalName } : f))
         setIsEditFileNameModalOpen(false)
         setNewFileName("")
         setEditingFileId(null)
     }
 
-    const saveAgendaReminder = () => {
+    const saveAgendaReminder = async () => {
         if (!currentReminder.text.trim()) return alert("Escribe un recordatorio")
+
+        if (user) {
+            await supabase.from('agenda').upsert({
+                user_id: user.id,
+                date: selectedAgendaDay,
+                text: currentReminder.text,
+                grad: currentReminder.grad,
+                hex: currentReminder.hex
+            })
+        }
+
         setAgendaEvents({ ...agendaEvents, [selectedAgendaDay]: currentReminder })
         setIsAgendaModalOpen(false)
     }
 
-    const updatePerfectDays = (currentHabits) => {
+    const updatePerfectDays = async (currentHabits) => {
         const today = new Date().toISOString().split('T')[0]
         const allDone = currentHabits.length > 0 && currentHabits.every(h => h.completed)
         const newPerfectDays = new Set(perfectDays)
-        if (allDone) newPerfectDays.add(today)
-        else newPerfectDays.delete(today)
+
+        if (allDone) {
+            newPerfectDays.add(today)
+            if (user) await supabase.from('perfect_days').upsert({ user_id: user.id, date: today })
+        } else {
+            newPerfectDays.delete(today)
+            if (user) await supabase.from('perfect_days').delete().match({ user_id: user.id, date: today })
+        }
         setPerfectDays(newPerfectDays)
     }
 
-    const saveNote = () => {
-        const noteData = {
+    const saveNote = async () => {
+        let savedNote;
+        if (user) {
+            const noteData = {
+                user_id: user.id,
+                title: currentNote.title,
+                body: currentNote.body,
+                grad: currentNote.grad,
+                hex: currentNote.hex,
+                done: editingNoteId ? notes.find(n => n.id === editingNoteId).done : false
+            }
+            if (editingNoteId) {
+                const { data } = await supabase.from('notes').update(noteData).eq('id', editingNoteId).select()
+                savedNote = data[0]
+            } else {
+                const { data } = await supabase.from('notes').insert([noteData]).select()
+                savedNote = data[0]
+            }
+        }
+
+        const noteData = savedNote || {
             ...currentNote,
             id: editingNoteId || Date.now(),
             done: editingNoteId ? notes.find(n => n.id === editingNoteId).done : false
@@ -232,8 +477,27 @@ export default function App() {
         setActivePage('notes')
     }
 
-    const saveActivity = () => {
-        const activityData = {
+    const saveActivity = async () => {
+        let savedActivity;
+        if (user) {
+            const activityData = {
+                user_id: user.id,
+                title: currentActivity.title,
+                body: currentActivity.body,
+                grad: currentActivity.grad,
+                hex: currentActivity.hex,
+                done: editingActivityId ? activities.find(a => a.id === editingActivityId).done : false
+            }
+            if (editingActivityId) {
+                const { data } = await supabase.from('activities').update(activityData).eq('id', editingActivityId).select()
+                savedActivity = data[0]
+            } else {
+                const { data } = await supabase.from('activities').insert([activityData]).select()
+                savedActivity = data[0]
+            }
+        }
+
+        const activityData = savedActivity || {
             ...currentActivity,
             id: editingActivityId || Date.now(),
             done: editingActivityId ? activities.find(a => a.id === editingActivityId).done : false
@@ -300,6 +564,83 @@ export default function App() {
         return streak
     }
 
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-[#0f0f14] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-6 animate-pulse">
+                    <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-xs font-black uppercase tracking-[0.3em] text-indigo-500">Sincronizando MindTrack...</span>
+                </div>
+            </div>
+        )
+    }
+
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-[#0f0f14] flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-[#0f0f14] to-[#0f0f14]">
+                <div className="w-full max-w-md space-y-8 text-center animate-in fade-in zoom-in duration-500">
+                    <div className="space-y-2">
+                        <div className="w-20 h-20 bg-indigo-500 rounded-3xl mx-auto flex items-center justify-center shadow-2xl shadow-indigo-500/20 mb-8 rotate-12">
+                            <Layout size={40} className="text-white -rotate-12" />
+                        </div>
+                        <h1 className="text-5xl font-black italic tracking-tighter uppercase text-white mb-2">MindTrack</h1>
+                        <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Tu mente, organizada. Tu progreso, asegurado.</p>
+                    </div>
+
+                    <div className="bg-white/5 backdrop-blur-xl border border-white/5 rounded-[3rem] p-10 shadow-2xl">
+                        <h2 className="text-xl font-black uppercase italic tracking-tighter text-indigo-500 mb-8">
+                            {authMode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
+                        </h2>
+
+                        <form onSubmit={handleAuth} className="space-y-5">
+                            {authMode === 'login' ? (
+                                <div className="space-y-2 text-left">
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Nombre de Usuario</label>
+                                    <input required type="text" placeholder="Tu nombre de usuario"
+                                        className="w-full bg-white/5 border border-white/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm text-white"
+                                        value={authData.fullName} onChange={e => setAuthData({ ...authData, fullName: e.target.value })} />
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="space-y-2 text-left">
+                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Nombre de Usuario (Único)</label>
+                                        <input required type="text" placeholder="Ej: AlexM"
+                                            className="w-full bg-white/5 border border-white/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm text-white"
+                                            value={authData.fullName} onChange={e => setAuthData({ ...authData, fullName: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-2 text-left">
+                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Correo (Puede ser repetido)</label>
+                                        <input type="email" placeholder="tu@ejemplo.com"
+                                            className="w-full bg-white/5 border border-white/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm text-white"
+                                            value={authData.email} onChange={e => setAuthData({ ...authData, email: e.target.value })} />
+                                    </div>
+                                </>
+                            )}
+                            <div className="space-y-2 text-left">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-4">Contraseña</label>
+                                <input required type="password" placeholder="Mínimo 6 caracteres"
+                                    className="w-full bg-white/5 border border-white/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm text-white"
+                                    value={authData.password} onChange={e => setAuthData({ ...authData, password: e.target.value })} />
+                            </div>
+
+                            {authError && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest animate-bounce">{authError}</p>}
+
+                            <button type="submit" className="w-full py-5 bg-indigo-500 text-white rounded-2xl font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all mt-4">
+                                {authMode === 'login' ? 'ENTRAR' : 'REGISTRARME Y GUARDAR'}
+                            </button>
+                        </form>
+
+                        <div className="mt-8 pt-8 border-t border-white/5">
+                            <button onClick={() => { setAuthMode(authMode === 'login' ? 'signup' : 'login'); setAuthError(null); }} className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-indigo-500 transition-colors">
+                                {authMode === 'login' ? '¿No tienes cuenta? Regístrate aquí' : '¿Ya tienes cuenta? Inicia sesión'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="min-h-screen bg-white dark:bg-[#0f0f14] text-black dark:text-white transition-colors duration-300">
             <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#0f0f14]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between">
@@ -359,8 +700,12 @@ export default function App() {
                             <Plus size={20} />
                         </button>
                     )}
-                    <button className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-gray-400 ml-1" title="Cuenta">
-                        <UserCircle size={22} />
+                    <button
+                        onClick={() => setIsAccountModalOpen(true)}
+                        className={cn("p-2 rounded-full transition-all active:scale-90", user ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")}
+                        title={`Mi Perfil (${user.user_metadata?.full_name || user.email})`}
+                    >
+                        <UserCircle size={22} strokeWidth={2.5} />
                     </button>
                 </div>
             </header>
@@ -462,7 +807,7 @@ export default function App() {
                                             <div className="flex justify-between items-start mb-2">
                                                 <h3 className={cn("font-black uppercase tracking-tight italic", note.grad ? "text-white drop-shadow-md" : "text-indigo-900 dark:text-white")}>{note.title}</h3>
                                                 <div className={cn("flex gap-1", note.grad ? "text-white/80" : "text-gray-400")}>
-                                                    <button onClick={() => setNotes(notes.map(n => n.id === note.id ? { ...n, done: !n.done } : n))}>
+                                                    <button onClick={() => toggleNoteDone(note.id)}>
                                                         {note.done ? <CheckCircle size={18} /> : <Circle size={18} />}
                                                     </button>
                                                     <button onClick={() => { setEditingNoteId(note.id); setCurrentNote(note); setActivePage('editor'); }}>
@@ -527,7 +872,7 @@ export default function App() {
                                     <div key={act.id} className={cn("p-4 rounded-2xl flex items-center justify-between transition-all", act.done ? "opacity-40 grayscale scale-[0.98]" : "shadow-md")}
                                         style={{ background: act.done ? 'rgba(0,0,0,0.05)' : act.grad }}>
                                         <div className="flex items-center gap-4 flex-1 min-w-0">
-                                            <button onClick={() => setActivities(activities.map(a => a.id === act.id ? { ...a, done: !a.done } : a))}
+                                            <button onClick={() => toggleActivityDone(act.id)}
                                                 className="w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center shrink-0 text-white">
                                                 {act.done ? <CheckCircle size={22} strokeWidth={3} /> : <div className="w-5 h-5 border-2 border-white/50 rounded-md"></div>}
                                             </button>
@@ -859,6 +1204,117 @@ export default function App() {
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            {isAuthModalOpen && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-10 shadow-2xl relative overflow-hidden border border-white/5">
+                        <div className="absolute top-0 right-0 p-6"><button onClick={() => setIsAuthModalOpen(false)}><X size={24} className="text-gray-400 hover:text-white transition-colors" /></button></div>
+                        <h2 className="text-2xl font-black uppercase tracking-tighter italic mb-2 tracking-widest text-indigo-500">
+                            {authMode === 'login' ? 'Bienvenido' : 'Crear Cuenta'}
+                        </h2>
+                        <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mb-8">
+                            {authMode === 'login' ? 'Inicia sesión para sincronizar' : 'Regístrate en MindTrack'}
+                        </p>
+
+                        <form onSubmit={handleAuth} className="space-y-6">
+                            {authMode === 'signup' && (
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Nombre Completo</label>
+                                    <input type="text" required placeholder="Tu nombre" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm"
+                                        value={authData.fullName} onChange={e => setAuthData({ ...authData, fullName: e.target.value })} />
+                                </div>
+                            )}
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Correo Electrónico</label>
+                                <input type="email" required placeholder="tu@email.com" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm"
+                                    value={authData.email} onChange={e => setAuthData({ ...authData, email: e.target.value })} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Contraseña</label>
+                                <input type="password" required placeholder="••••••••" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm"
+                                    value={authData.password} onChange={e => setAuthData({ ...authData, password: e.target.value })} />
+                            </div>
+
+                            <button type="submit" className="w-full py-5 bg-indigo-500 text-white rounded-[1.5rem] font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all">
+                                {authMode === 'login' ? 'ENTRAR' : 'REGISTRARME'}
+                            </button>
+                        </form>
+
+                        <div className="mt-8 text-center">
+                            <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-[10px] font-black uppercase tracking-widest text-indigo-500/60 hover:text-indigo-500">
+                                {authMode === 'login' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {isAccountModalOpen && user && (
+                <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-12 shadow-2xl relative overflow-hidden border border-white/5 text-center">
+                        <div className="absolute top-0 right-0 p-8">
+                            <button onClick={() => setIsAccountModalOpen(false)}>
+                                <X size={24} className="text-gray-400 hover:text-white transition-colors" />
+                            </button>
+                        </div>
+
+                        <div className="w-24 h-24 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-indigo-500/20">
+                            <UserCircle size={48} className="text-indigo-500" />
+                        </div>
+
+                        <h2 className="text-2xl font-black uppercase tracking-tighter italic text-indigo-500 mb-1">
+                            {user.user_metadata?.full_name || 'Usuario'}
+                        </h2>
+                        <p className="text-xs font-bold text-gray-500 lowercase tracking-widest mb-12">
+                            {user.email}
+                        </p>
+
+                        <div className="space-y-4">
+                            <button
+                                onClick={async () => {
+                                    await supabase.auth.signOut()
+                                    setIsAccountModalOpen(false)
+                                    setHabits([])
+                                    setNotes([])
+                                    setActivities([])
+                                    setAgendaEvents({})
+                                    setPerfectDays(new Set())
+                                    setReadingFiles([])
+                                }}
+                                className="w-full py-5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black tracking-[0.2em] uppercase text-xs hover:bg-red-500 hover:text-white transition-all active:scale-95"
+                            >
+                                Cerrar Sesión
+                            </button>
+                            <button
+                                onClick={() => setIsAccountModalOpen(false)}
+                                className="w-full py-4 text-gray-400 font-black text-[10px] tracking-[0.2em] uppercase"
+                            >
+                                Volver
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showSuccessModal && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-12 shadow-2xl relative overflow-hidden border border-white/5 text-center">
+                        <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <CheckCircle size={40} className="text-green-500 animate-bounce" />
+                        </div>
+                        <h2 className="text-2xl font-black uppercase tracking-tighter italic text-indigo-500 mb-2">¡REGISTRADO!</h2>
+                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-10">Tu cuenta ha sido creada exitosamente. ¡Bienvenido a la comunidad!</p>
+
+                        <button
+                            onClick={() => {
+                                setShowSuccessModal(false);
+                                setAuthMode('login');
+                            }}
+                            className="w-full py-5 bg-indigo-500 text-white rounded-2xl font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all"
+                        >
+                            ENTRAR AHORA
+                        </button>
                     </div>
                 </div>
             )}
