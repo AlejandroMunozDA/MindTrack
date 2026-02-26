@@ -72,7 +72,10 @@ export default function App() {
     const [activityPriorityFilter, setActivityPriorityFilter] = useState(null)
 
     // Reading section states
-    const [readingCategories, setReadingCategories] = useState(() => JSON.parse(localStorage.getItem('reading_cats') || '["Educativo", "Para mi"]'))
+    const [readingCategories, setReadingCategories] = useState(() => {
+        const saved = localStorage.getItem('reading_cats')
+        return saved ? JSON.parse(saved) : ["Educativo", "Para mi"]
+    })
     const [selectedReadingCat, setSelectedReadingCat] = useState("Educativo")
     const [isNewCatModalOpen, setIsNewCatModalOpen] = useState(false)
     const [newCatName, setNewCatName] = useState("")
@@ -159,7 +162,11 @@ export default function App() {
             dbAgenda.forEach(item => { agendaObj[item.date] = { text: item.text, grad: item.grad, hex: item.hex } })
             setAgendaEvents(agendaObj)
         }
-        if (dbCategories) setReadingCategories(dbCategories.map(c => c.name))
+        if (dbCategories && dbCategories.length > 0) {
+            setReadingCategories(dbCategories.map(c => c.name))
+        } else {
+            setReadingCategories(["Educativo", "Para mi"])
+        }
         if (dbFiles) setReadingFiles(dbFiles)
     }
 
@@ -337,11 +344,9 @@ export default function App() {
 
     const downloadFile = (file) => {
         const link = document.createElement('a')
-        link.href = file.data || file.file_url
-        link.download = file.name || 'documento.pdf'
-        document.body.appendChild(link)
+        link.href = file.data
+        link.download = file.name
         link.click()
-        document.body.removeChild(link)
     }
 
     const saveHabit = async () => {
@@ -705,7 +710,7 @@ export default function App() {
                 </div>
             </header>
 
-            <main className={cn("mx-auto p-5 pb-20 transition-all duration-500", activePage === 'lectura' ? "max-w-5xl" : (activePage === 'habitos' ? "max-w-4xl" : "max-w-xl"))}>
+            <main className={cn("mx-auto p-5 pb-20 transition-all duration-500", activePage === 'lectura' ? "max-w-4xl" : (activePage === 'habitos' ? "max-w-4xl" : "max-w-xl"))}>
                 {activePage === 'habitos' && (
                     <div className="flex flex-col md:flex-row gap-8 items-start">
                         {/* DASHBOARD LATERAL */}
@@ -890,7 +895,7 @@ export default function App() {
                 {activePage === 'lectura' && (
                     <div className="space-y-6">
                         <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 mb-6">
                             <div className="flex-1 relative group">
                                 <input
                                     type="text"
@@ -901,11 +906,18 @@ export default function App() {
                                 />
                                 <Search size={22} className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500/50" />
                             </div>
-                            <button onClick={() => fileInputRef.current?.click()} className="aspect-square w-[60px] flex items-center justify-center bg-indigo-500 text-white rounded-[1.5rem] shadow-xl shadow-indigo-500/30 active:scale-90 transition-all"><Plus size={28} /></button>
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="aspect-square w-[60px] flex items-center justify-center bg-indigo-500 text-white rounded-[1.5rem] shadow-xl shadow-indigo-500/30 active:scale-90 transition-all"
+                                title="Subir PDF"
+                            >
+                                <Plus size={28} />
+                            </button>
                         </div>
 
-                        <div className="flex gap-6 min-h-[650px]">
-                            <div className="flex-1 bg-gray-50 dark:bg-white/5 rounded-[2.5rem] p-6 relative shadow-inner border border-indigo-500/10 h-[650px] overflow-y-auto scrollbar-hide">
+                        <div className="flex gap-6 min-h-[550px]">
+                            {/* RECUADRO IZQUIERDO: LISTA DE PDFS */}
+                            <div className="flex-1 bg-gray-50 dark:bg-white/5 rounded-[3rem] p-8 relative shadow-inner border border-indigo-500/10 h-[550px] overflow-y-auto scrollbar-hide">
                                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-indigo-500/5">
                                     <h2 className="text-2xl font-black uppercase italic tracking-tighter text-indigo-500">{selectedReadingCat}</h2>
                                 </div>
@@ -913,90 +925,62 @@ export default function App() {
                                     {readingFiles
                                         .filter(f => f.category === selectedReadingCat && f.name.toLowerCase().includes(readingSearchQuery.toLowerCase()))
                                         .map(file => (
-                                            <div key={file.id}
-                                                className="group flex items-center bg-white dark:bg-white/5 p-4 rounded-[2.5rem] border border-indigo-500/5 cursor-pointer hover:shadow-2xl hover:bg-indigo-500/[0.02] transition-all relative overflow-hidden"
-                                                onClick={() => { const win = window.open(); win.document.write(`<iframe src="${file.data || file.file_url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`); }}>
-                                                {/* Representación de Portada (Thumbnail) */}
-                                                <div className="w-16 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex flex-col items-center justify-center text-white shrink-0 border border-white/20 shadow-lg relative overflow-hidden group-hover:scale-105 transition-transform">
-                                                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_left,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
-                                                    <FileText size={24} className="mb-1 drop-shadow-md" />
-                                                    <span className="text-[6px] font-black uppercase tracking-[0.2em] opacity-80">PDF READER</span>
+                                            <div
+                                                key={file.id}
+                                                className="group relative flex items-center gap-6 bg-white dark:bg-white/5 p-4 rounded-[2.5rem] border border-indigo-500/5 cursor-pointer hover:shadow-2xl hover:bg-indigo-500/[0.02] transition-all duration-300 overflow-hidden"
+                                                onClick={() => { const win = window.open(); win.document.write(`<iframe src="${file.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`); }}
+                                            >
+                                                {/* Portada del PDF */}
+                                                <div className="w-16 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex flex-col items-center justify-center text-white shrink-0 border border-white/10 shadow-lg group-hover:rotate-2 transition-transform">
+                                                    <FileText size={32} strokeWidth={2.5} />
+                                                    <span className="text-[8px] font-black uppercase mt-1 tracking-widest opacity-80">PDF</span>
                                                 </div>
 
-                                                <div className="ml-6 flex-1 min-w-0">
-                                                    <h4 className="font-black text-sm md:text-base uppercase tracking-tight truncate text-indigo-900 dark:text-white/90 group-hover:text-indigo-500 transition-colors">
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-black text-sm uppercase tracking-tight truncate text-indigo-900 dark:text-white group-hover:text-indigo-500 transition-colors">
                                                         {file.name}
                                                     </h4>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-md">
-                                                            {file.date}
-                                                        </span>
-                                                        <span className="text-[9px] font-bold text-indigo-500/50 uppercase tracking-widest italic">Archivo PDF</span>
-                                                    </div>
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest opacity-60">
+                                                        {file.date}
+                                                    </span>
                                                 </div>
 
-                                                {/* Iconos de Acción */}
-                                                <div className="flex gap-2 ml-4 px-2">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setEditingFileId(file.id); setNewFileName(file.name); setIsEditFileNameModalOpen(true); }}
-                                                        className="p-3 text-gray-400 hover:text-indigo-500 hover:bg-indigo-500/10 rounded-xl transition-all active:scale-90"
-                                                        title="Editar nombre"
-                                                    >
-                                                        <Edit2 size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); downloadFile(file); }}
-                                                        className="p-3 text-gray-400 hover:text-green-500 hover:bg-green-500/10 rounded-xl transition-all active:scale-90"
-                                                        title="Descargar"
-                                                    >
-                                                        <Download size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); openDeleteConfirm(file.id, 'pdf_file', file.name); }}
-                                                        className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all active:scale-90"
-                                                        title="Eliminar"
-                                                    >
-                                                        <Trash2 size={18} />
-                                                    </button>
+                                                <div className="flex gap-2 mr-2">
+                                                    <button onClick={(e) => { e.stopPropagation(); setEditingFileId(file.id); setNewFileName(file.name); setIsEditFileNameModalOpen(true); }} className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl hover:bg-indigo-500 hover:text-white transition-all"><Edit2 size={16} /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); downloadFile(file); }} className="p-3 bg-green-500/10 text-green-500 rounded-2xl hover:bg-green-500 hover:text-white transition-all"><Download size={16} /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); openDeleteConfirm(file.id, 'pdf_file', file.name); }} className="p-3 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16} /></button>
                                                 </div>
                                             </div>
                                         ))}
+                                    {readingFiles.filter(f => f.category === selectedReadingCat).length === 0 && (
+                                        <div className="text-center py-20 opacity-20 uppercase font-black text-sm tracking-widest">No hay archivos en esta sección</div>
+                                    )}
                                 </div>
                             </div>
-                            <div className="w-44 flex flex-col gap-3 shrink-0">
-                                {readingCategories.map((cat, index) => (
-                                    <div key={cat} className="group relative">
-                                        <button
-                                            onClick={() => setSelectedReadingCat(cat)}
-                                            className={cn(
-                                                "w-full px-5 py-6 rounded-[2rem] font-black text-[11px] uppercase tracking-tighter transition-all flex flex-col gap-4 border",
-                                                selectedReadingCat === cat
-                                                    ? "bg-indigo-500 text-white shadow-2xl shadow-indigo-500/30 border-white/20 -translate-x-2"
-                                                    : "bg-white dark:bg-white/5 text-gray-400 border-indigo-500/5 hover:-translate-x-1 hover:border-indigo-500/20 shadow-md hover:shadow-xl"
-                                            )}
-                                        >
-                                            <div className="flex items-center justify-between w-full">
-                                                <span className="truncate pr-2">{cat}</span>
-                                                <div className="flex gap-2 shrink-0">
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setEditingCatIndex(index); setNewCatName(cat); setIsNewCatModalOpen(true); }}
-                                                        className={cn("p-1.5 rounded-lg transition-all", selectedReadingCat === cat ? "bg-white/20 text-white hover:bg-white/30" : "bg-gray-100 dark:bg-white/10 text-gray-400 hover:text-indigo-500")}
-                                                    >
-                                                        <Edit2 size={12} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); openDeleteConfirm(index, 'reading_cat', cat); }}
-                                                        className={cn("p-1.5 rounded-lg transition-all", selectedReadingCat === cat ? "bg-white/20 text-white hover:bg-red-200" : "bg-gray-100 dark:bg-white/10 text-gray-400 hover:text-red-500")}
-                                                    >
-                                                        <Trash2 size={12} />
-                                                    </button>
+
+                            {/* RECUADRO DERECHO: SECCIONES */}
+                            <div className="w-64 bg-gray-50 dark:bg-white/5 rounded-[3rem] p-8 shadow-inner border border-indigo-500/10 h-[550px] flex flex-col">
+                                <h2 className="text-xl font-black uppercase italic tracking-tighter text-indigo-500 mb-8 pb-4 border-b border-indigo-500/5 text-center">Secciones</h2>
+                                <div className="flex-1 overflow-y-auto scrollbar-hide space-y-3">
+                                    {readingCategories.map((cat, index) => (
+                                        <div key={cat} className="group relative">
+                                            <button
+                                                onClick={() => setSelectedReadingCat(cat)}
+                                                className={cn(
+                                                    "w-full px-5 py-5 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest transition-all flex items-center justify-between",
+                                                    selectedReadingCat === cat ? "bg-indigo-500 text-white shadow-xl scale-[1.02]" : "bg-white dark:bg-white/5 text-gray-400 hover:bg-indigo-500/5 hover:text-indigo-500"
+                                                )}
+                                            >
+                                                <span className="truncate pr-4">{cat}</span>
+                                                <div className={cn("flex gap-1.5 shrink-0 transition-opacity", selectedReadingCat === cat ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+                                                    <button onClick={(e) => { e.stopPropagation(); setEditingCatIndex(index); setNewCatName(cat); setIsNewCatModalOpen(true); }} className="hover:scale-125 transition-transform"><Edit2 size={14} /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); openDeleteConfirm(index, 'reading_cat', cat); }} className="hover:scale-125 transition-transform text-red-400"><Trash2 size={14} /></button>
                                                 </div>
-                                            </div>
-                                            <div className={cn("w-full h-1 rounded-full", selectedReadingCat === cat ? "bg-white/30" : "bg-indigo-500/10")}></div>
-                                        </button>
-                                    </div>
-                                ))}
-                                <button onClick={() => { setEditingCatIndex(null); setNewCatName(""); setIsNewCatModalOpen(true); }} className="w-full mt-4 py-4 bg-gray-100 dark:bg-white/5 border-2 border-dashed border-indigo-500/20 text-indigo-500/50 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-500/5 transition-all flex items-center justify-center gap-2">
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button onClick={() => { setEditingCatIndex(null); setNewCatName(""); setIsNewCatModalOpen(true); }} className="w-full mt-6 py-4 bg-indigo-500 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/30 hover:scale-[0.98] transition-all flex items-center justify-center gap-2">
                                     <Plus size={16} />
                                     NUEVA SECCIÓN
                                 </button>
