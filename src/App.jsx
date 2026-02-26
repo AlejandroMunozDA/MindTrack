@@ -69,6 +69,9 @@ export default function App() {
     const [selectedAgendaDay, setSelectedAgendaDay] = useState(null)
     const [currentReminder, setCurrentReminder] = useState({ text: '', hex: PALETTE[0].hex, grad: PALETTE[0].grad })
     const [agendaCalDate, setAgendaCalDate] = useState(new Date())
+    const [habitHistory, setHabitHistory] = useState(() => JSON.parse(localStorage.getItem('mindtrack_habit_history') || '[]'))
+    const [lastActiveDate, setLastActiveDate] = useState(() => localStorage.getItem('mindtrack_last_active_date') || new Date().toISOString().split('T')[0])
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
     // Search queries
     const [noteSearchQuery, setNoteSearchQuery] = useState("")
@@ -107,6 +110,8 @@ export default function App() {
     useEffect(() => { localStorage.setItem('reading_files', JSON.stringify(readingFiles)) }, [readingFiles])
     useEffect(() => { localStorage.setItem('selected_reading_cat', selectedReadingCat) }, [selectedReadingCat])
     useEffect(() => { localStorage.setItem('mindtrack_agenda', JSON.stringify(agendaEvents)) }, [agendaEvents])
+    useEffect(() => { localStorage.setItem('mindtrack_habit_history', JSON.stringify(habitHistory)) }, [habitHistory])
+    useEffect(() => { localStorage.setItem('mindtrack_last_active_date', lastActiveDate) }, [lastActiveDate])
 
     useEffect(() => {
         localStorage.setItem('habitos_theme', isDark ? 'dark' : 'light')
@@ -136,6 +141,58 @@ export default function App() {
         return () => subscription.unsubscribe()
     }, [])
 
+    // Efecto para verificar cambio de día y resetear hábitos
+    useEffect(() => {
+        const checkDayChange = () => {
+            const today = new Date().toISOString().split('T')[0]
+            if (today !== lastActiveDate) {
+                // El día ha cambiado. Guardamos el registro del día anterior.
+                const percentage = habits.length > 0 ? Math.round((habits.filter(h => h.completed).length / habits.length) * 100) : 0
+                const streak = perfectDays.size // O una lógica de racha más compleja si se prefiere
+
+                const [y, m, d] = lastActiveDate.split('-')
+                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+                const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
+
+                const newRecord = {
+                    date: recordDate,
+                    streak: streak,
+                    percentage: percentage,
+                    timestamp: lastActiveDate
+                }
+
+                setHabitHistory(prev => [newRecord, ...prev])
+
+                // Desmarcamos todos los hábitos
+                const resetHabits = habits.map(h => ({ ...h, completed: false }))
+                setHabits(resetHabits)
+
+                // Sincronizamos con Supabase si hay usuario
+                if (user) {
+                    supabase.from('habit_history').insert([{
+                        user_id: user.id,
+                        date_str: recordDate,
+                        streak: streak,
+                        percentage: percentage,
+                        raw_date: lastActiveDate
+                    }]).then(() => {
+                        // También actualizamos los hábitos en el servidor para que estén desmarcados
+                        resetHabits.forEach(h => {
+                            supabase.from('habits').update({ completed: false }).eq('id', h.id).then()
+                        })
+                    })
+                }
+
+                setLastActiveDate(today)
+            }
+        }
+
+        checkDayChange()
+        // Opcional: checar cada cierto tiempo si la app se queda abierta
+        const interval = setInterval(checkDayChange, 60000)
+        return () => clearInterval(interval)
+    }, [lastActiveDate, habits, perfectDays, user])
+
     useEffect(() => {
         if (user) {
             fetchUserData()
@@ -152,7 +209,8 @@ export default function App() {
             { data: dbActivities },
             { data: dbAgenda },
             { data: dbCategories },
-            { data: dbFiles }
+            { data: dbFiles },
+            { data: dbHistory }
         ] = await Promise.all([
             supabase.from('habits').select('*').order('created_at', { ascending: true }),
             supabase.from('perfect_days').select('date'),
@@ -160,7 +218,8 @@ export default function App() {
             supabase.from('activities').select('*').order('created_at', { ascending: false }),
             supabase.from('agenda').select('*'),
             supabase.from('reading_categories').select('*'),
-            supabase.from('reading_files').select('*')
+            supabase.from('reading_files').select('*'),
+            supabase.from('habit_history').select('*').order('raw_date', { ascending: false })
         ])
 
         if (dbHabits) setHabits(dbHabits)
@@ -184,6 +243,14 @@ export default function App() {
                 const dbIds = new Set(dbFiles.map(f => f.id))
                 return [...dbFiles, ...localOnly.filter(f => !dbIds.has(f.id))]
             })
+        }
+        if (dbHistory) {
+            setHabitHistory(dbHistory.map(h => ({
+                date: h.date_str,
+                streak: h.streak,
+                percentage: h.percentage,
+                timestamp: h.raw_date
+            })))
         }
     }
 
@@ -924,6 +991,14 @@ export default function App() {
                                     </div>
                                 </div>
                             </div>
+
+                            <button
+                                onClick={() => setIsHistoryModalOpen(true)}
+                                className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/10 p-3 rounded-2xl flex items-center justify-center gap-3 hover:bg-indigo-500/5 transition-all group"
+                            >
+                                <ClipboardList size={18} className="text-indigo-500 group-hover:scale-110 transition-transform" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-900 dark:text-white opacity-60">Registro</span>
+                            </button>
                         </div>
 
                         {/* LISTA DE HÁBITOS */}
@@ -1560,6 +1635,71 @@ export default function App() {
                     </div>
                 )
             }
+            {isHistoryModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-[#0f0f14] w-full max-w-sm rounded-[3rem] p-8 shadow-2xl border border-indigo-500/10 relative">
+                        <button onClick={() => setIsHistoryModalOpen(false)} className="absolute right-8 top-8 text-gray-400 hover:text-white transition-colors">
+                            <X size={24} />
+                        </button>
+                        <h2 className="text-2xl font-black uppercase italic tracking-tighter text-indigo-500 mb-8 border-b border-indigo-500/5 pb-4 text-center">Registro Diario</h2>
+
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
+                            {/* REGISTRO EN TIEMPO REAL (HOY) */}
+                            {(() => {
+                                const percentage = habits.length > 0 ? Math.round((habits.filter(h => h.completed).length / habits.length) * 100) : 0
+                                const streak = perfectDays.size
+                                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+                                const now = new Date()
+                                const todayStr = `${now.getDate().toString().padStart(2, '0')}/${months[now.getMonth()]}/${now.getFullYear()}`
+
+                                return (
+                                    <div className="bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-2xl flex items-center justify-between group shadow-lg shadow-indigo-500/5">
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">{todayStr}</span>
+                                                <span className="text-[8px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Hoy</span>
+                                            </div>
+                                            <div className="flex gap-4 mt-1">
+                                                <div className="flex items-center gap-1">
+                                                    <Flame size={14} className="text-orange-500" />
+                                                    <span className="text-xs font-black">RACHA: {streak}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <BarChart2 size={14} className="text-indigo-500" />
+                                                    <span className="text-xs font-black">{percentage}%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="w-1.5 h-10 bg-indigo-500 rounded-full animate-pulse"></div>
+                                    </div>
+                                )
+                            })()}
+
+                            {/* HISTORIAL GUARDADO */}
+                            {habitHistory.length > 0 ? habitHistory.map((record, i) => (
+                                <div key={i} className="bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-4 rounded-2xl flex items-center justify-between group hover:border-indigo-500/20 transition-all opacity-70">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 opacity-60">{record.date}</span>
+                                        <div className="flex gap-4 mt-1">
+                                            <div className="flex items-center gap-1">
+                                                <Flame size={14} className="text-orange-500 opacity-50" />
+                                                <span className="text-xs font-black">RACHA: {record.streak}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <BarChart2 size={14} className="text-indigo-500 opacity-50" />
+                                                <span className="text-xs font-black">{record.percentage}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="w-1.5 h-10 bg-indigo-500 rounded-full opacity-10 group-hover:opacity-100 transition-opacity"></div>
+                                </div>
+                            )) : (
+                                <div className="text-center py-10 opacity-20 uppercase font-black text-xs tracking-widest">No hay registros pasados</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     )
 }
