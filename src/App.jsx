@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from './lib/supabase'
-import { Plus, Flame, Calendar, Moon, Sun, Menu, ArrowLeft, Trash2, Edit2, CheckCircle, Circle, Save, Bold, List, X, AlertTriangle, BarChart2, BookOpen, Book, GraduationCap, Layout, Search, FileText, Download, File, Activity, ClipboardList, UserCircle } from 'lucide-react'
+import { Plus, Flame, Calendar, Moon, Sun, Menu, ArrowLeft, Trash2, Edit2, CheckCircle, Circle, Save, Bold, List, X, AlertTriangle, BarChart2, BookOpen, Book, GraduationCap, Layout, Search, FileText, Download, File, Activity, ClipboardList, UserCircle, Underline } from 'lucide-react'
 import { clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -28,10 +28,13 @@ const COLORS = {
 const DAYS_OF_WEEK = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
 const BOLD_MAP = {
-    ' ': ' ', 'a': '𝗮', 'b': '𝗯', 'c': '𝗰', 'd': '𝗱', 'e': '𝗲', 'f': '𝗳', 'g': '𝗴', 'h': '𝗵', 'i': '𝗶', 'j': '𝗷', 'k': '𝗸', 'l': '𝗹', 'm': '𝗺', 'n': '𝗻', 'o': '𝗼', 'p': '𝗽', 'q': '𝗾', 'r': '𝗿', 's': '𝘀', 't': '𝘁', 'u': '𝘂', 'v': '𝘃', 'w': '𝘄', 'x': '𝘅', 'y': '𝘆', 'z': '𝘇',
-    'A': '𝗔', 'B': 'Ｂ', 'C': 'Ｃ', 'D': 'Ｄ', 'E': 'Ｅ', 'F': '𝗙', 'G': 'Ｇ', 'H': '𝗛', 'I': '𝗜', 'J': 'Ｊ', 'K': 'Ｋ', 'L': 'Ｌ', 'M': 'Ｍ', 'N': 'Ｎ', 'O': 'Ｏ', 'P': 'Ｐ', 'Q': '𝗤', 'R': 'Ｒ', 'S': 'Ｓ', 'T': 'Ｔ', 'U': 'Ｕ', 'V': 'Ｖ', 'W': 'Ｗ', 'X': '𝗫', 'Y': '𝗬', 'Z': '𝗭'
+    'a': '𝗮', 'b': '𝗯', 'c': '𝗰', 'd': '𝗱', 'e': '𝗲', 'f': '𝗳', 'g': '𝗴', 'h': '𝗵', 'i': '𝗶', 'j': '𝗷', 'k': '𝗸', 'l': '𝗹', 'm': '𝗺', 'n': '𝗻', 'o': '𝗼', 'p': '𝗽', 'q': '𝗾', 'r': '𝗿', 's': '𝘀', 't': '𝘁', 'u': '𝘂', 'v': '𝘃', 'w': '𝘄', 'x': '𝘅', 'y': '𝘆', 'z': '𝘇',
+    'A': '𝗔', 'B': '𝗕', 'C': '𝗖', 'D': '𝗗', 'E': '𝗘', 'F': '𝗙', 'G': '𝗚', 'H': '𝗛', 'I': '𝗜', 'J': 'Ｊ', 'K': 'Ｋ', 'L': 'Ｌ', 'M': 'Ｍ', 'N': 'Ｎ', 'O': 'Ｏ', 'P': 'Ｐ', 'Q': '𝗤', 'R': '𝗥', 'S': '𝗦', 'T': '𝗧', 'U': '𝗨', 'V': 'Ｖ', 'W': 'Ｗ', 'X': '𝗫', 'Y': '𝗬', 'Z': '𝗭',
+    '0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵'
 }
 const REVERSE_BOLD_MAP = Object.fromEntries(Object.entries(BOLD_MAP).map(([k, v]) => [v, k]))
+const STRIKE = '\u0336'
+const UNDERLINE = '\u0332'
 
 export default function App() {
     const [habits, setHabits] = useState(() => JSON.parse(localStorage.getItem('habitos_h') || '[]'))
@@ -163,11 +166,11 @@ export default function App() {
             dbAgenda.forEach(item => { agendaObj[item.date] = { text: item.text, grad: item.grad, hex: item.hex } })
             setAgendaEvents(agendaObj)
         }
-        if (dbCategories && dbCategories.length > 0) {
-            setReadingCategories(dbCategories.map(c => c.name))
-        } else {
-            setReadingCategories(["Educativo", "Para mi"])
-        }
+        const defaultCats = ["Educativo", "Para mi"]
+        const serverCats = dbCategories ? dbCategories.map(c => c.name) : []
+        // Fusión sin duplicados: predeterminadas + servidor
+        const mergedCats = Array.from(new Set([...defaultCats, ...serverCats]))
+        setReadingCategories(mergedCats)
         if (dbFiles) {
             // Combinamos archivos de la DB con locales que aún no se hayan subido (ids temporales)
             setReadingFiles(prev => {
@@ -325,12 +328,13 @@ export default function App() {
         const reader = new FileReader()
         reader.onload = async (event) => {
             const tempId = Date.now()
+            const isoDate = new Date().toISOString().split('T')[0]
             const fileData = {
                 id: tempId,
                 name: file.name,
                 category: selectedReadingCat,
                 data: event.target.result,
-                date: new Date().toLocaleDateString()
+                date: isoDate
             }
 
             // Actualización optimista local
@@ -346,8 +350,13 @@ export default function App() {
                         file_name_storage: file.name,
                         date: fileData.date
                     }]).select()
-
-                    if (error) throw error
+                    if (error) {
+                        if (error.message.includes("payload too large")) {
+                            alert("El archivo es demasiado grande para guardarse en la nube. Se guardará solo localmente en este dispositivo.")
+                        } else {
+                            throw error
+                        }
+                    }
 
                     if (data && data[0]) {
                         // Reemplazamos el temporal con el real de la DB
@@ -355,7 +364,7 @@ export default function App() {
                     }
                 } catch (err) {
                     console.error("Error al subir archivo:", err)
-                    // El archivo permanece localmente (en el estado de la sesión)
+                    alert("Error al sincronizar con Supabase. El archivo se mantendrá solo localmente.")
                 }
             }
         }
@@ -401,11 +410,18 @@ export default function App() {
         if (!newCatName.trim()) return alert("Ingresa un nombre para la sección")
 
         if (user) {
-            if (editingCatIndex !== null) {
-                const oldName = readingCategories[editingCatIndex];
-                await supabase.from('reading_categories').update({ name: newCatName.trim() }).eq('user_id', user.id).eq('name', oldName)
-            } else {
-                await supabase.from('reading_categories').insert([{ user_id: user.id, name: newCatName.trim() }])
+            try {
+                if (editingCatIndex !== null) {
+                    const oldName = readingCategories[editingCatIndex];
+                    const { error } = await supabase.from('reading_categories').update({ name: newCatName.trim() }).eq('user_id', user.id).eq('name', oldName)
+                    if (error) throw error
+                } else {
+                    const { error } = await supabase.from('reading_categories').insert([{ user_id: user.id, name: newCatName.trim() }])
+                    if (error) throw error
+                }
+            } catch (err) {
+                console.error("Error al guardar categoría:", err)
+                return alert("No se pudo guardar la sección en la nube.")
             }
         }
 
@@ -511,7 +527,6 @@ export default function App() {
             const activityData = {
                 user_id: user.id,
                 title: currentActivity.title,
-                body: currentActivity.body,
                 grad: currentActivity.grad,
                 hex: currentActivity.hex,
                 done: editingActivityId ? activities.find(a => a.id === editingActivityId).done : false
@@ -548,30 +563,34 @@ export default function App() {
         const after = ta.value.substring(end)
 
         let res = sel
-        const chars = Array.from(sel)
 
         if (type === 'bold') {
-            const isAllBold = chars.every(ch => REVERSE_BOLD_MAP[ch])
-            res = isAllBold
-                ? chars.map(ch => REVERSE_BOLD_MAP[ch] || ch).join('')
-                : chars.map(ch => BOLD_MAP[ch] || ch).join('')
+            const chars = Array.from(sel)
+            const isAllBold = chars.every(ch => ' \n\t'.includes(ch) || !!REVERSE_BOLD_MAP[ch] || ch === STRIKE || ch === UNDERLINE)
+            res = chars.map(ch => isAllBold ? (REVERSE_BOLD_MAP[ch] || ch) : (BOLD_MAP[ch] || ch)).join('')
         } else if (type === 'strike') {
-            const hasStrike = sel.includes('\u0336')
-            res = hasStrike
-                ? chars.filter(ch => ch !== '\u0336').join('')
-                : chars.map(ch => ch + '\u0336').join('')
+            const hasStrike = sel.includes(STRIKE)
+            res = hasStrike ? sel.split(STRIKE).join('') : Array.from(sel).map(ch => ch === '\n' ? ch : ch + STRIKE).join('')
+        } else if (type === 'underline') {
+            const hasUnderline = sel.includes(UNDERLINE)
+            res = hasUnderline ? sel.split(UNDERLINE).join('') : Array.from(sel).map(ch => ch === '\n' ? ch : ch + UNDERLINE).join('')
         } else if (type === 'list') {
             const lines = sel.split('\n')
-            const isAllList = lines.every(l => l.startsWith('• '))
+            const isAllList = lines.every(l => l.startsWith('• ') || l.trim() === '')
             res = isAllList
-                ? lines.map(l => l.replace('• ', '')).join('\n')
-                : lines.map(l => l.startsWith('• ') ? l : '• ' + l).join('\n')
+                ? lines.map(l => l.startsWith('• ') ? l.substring(2) : l).join('\n')
+                : lines.map(l => (l.startsWith('• ') || l.trim() === '') ? l : '• ' + l).join('\n')
         }
 
-        if (target === 'note') setCurrentNote({ ...currentNote, body: before + res + after })
-        else setCurrentActivity({ ...currentActivity, body: before + res + after })
+        const finalContent = before + res + after
+        if (target === 'note') setCurrentNote({ ...currentNote, body: finalContent })
+        // El editor de actividades ahora es simplificado y no usa body, pero mantenemos por consistencia
+        else setCurrentActivity({ ...currentActivity, body: finalContent })
 
-        setTimeout(() => { ta.focus(); ta.setSelectionRange(start, start + res.length) }, 10)
+        setTimeout(() => {
+            ta.focus()
+            ta.setSelectionRange(start, start + res.length)
+        }, 10)
     }
 
     const getNotePriorityCount = (grad) => notes.filter(n => n.grad === grad && !n.done).length
@@ -897,9 +916,8 @@ export default function App() {
                                                 className="w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center shrink-0 text-white">
                                                 {act.done ? <CheckCircle size={22} strokeWidth={3} /> : <div className="w-5 h-5 border-2 border-white/50 rounded-md"></div>}
                                             </button>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-black text-white text-sm uppercase tracking-tight mb-0.5 truncate drop-shadow-sm">{act.title}</h4>
-                                                <p className="text-[10px] text-white/70 font-bold truncate tracking-tight">{act.body}</p>
+                                            <div className="flex-1 min-w-0 flex items-center">
+                                                <h4 className="font-black text-white text-sm uppercase tracking-tight truncate drop-shadow-sm">{act.title}</h4>
                                             </div>
                                         </div>
                                         <div className="flex gap-1 ml-4 shrink-0">
@@ -1021,11 +1039,14 @@ export default function App() {
                             onChange={e => activePage === 'editor' ? setCurrentNote({ ...currentNote, title: e.target.value }) : setCurrentActivity({ ...currentActivity, title: e.target.value })} />
 
                         <div className="flex items-center justify-between">
-                            <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-2xl w-fit">
-                                <button onClick={() => applyFmt('bold', activePage === 'editor' ? 'note' : 'act')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center"><Bold size={16} /></button>
-                                <button onClick={() => applyFmt('strike', activePage === 'editor' ? 'note' : 'act')} className="p-2 px-3 rounded-xl hover:bg-white dark:hover:bg-white/10 text-xs font-black line-through">S</button>
-                                <button onClick={() => applyFmt('list', activePage === 'editor' ? 'note' : 'act')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10"><List size={16} /></button>
-                            </div>
+                            {activePage === 'editor' && (
+                                <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-2xl w-fit">
+                                    <button onClick={() => applyFmt('bold', 'note')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Bold size={16} /></button>
+                                    <button onClick={() => applyFmt('underline', 'note')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Underline size={16} /></button>
+                                    <button onClick={() => applyFmt('strike', 'note')} className="p-2 px-3 rounded-xl hover:bg-white dark:hover:bg-white/10 text-xs font-black line-through text-indigo-500">S</button>
+                                    <button onClick={() => applyFmt('list', 'note')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 text-indigo-500"><List size={16} /></button>
+                                </div>
+                            )}
 
                             <div className="flex flex-wrap gap-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-2xl">
                                 {(activePage === 'editor_act' ? Object.values(COLORS) : PALETTE).map((p, idx) => (
@@ -1037,11 +1058,17 @@ export default function App() {
                             </div>
                         </div>
 
-                        <textarea ref={textareaRef} placeholder="Escribe aquí..."
-                            className={cn("w-full min-h-[350px] p-4 rounded-3xl outline-none font-semibold text-sm leading-8 transition-colors", (activePage === 'editor' ? currentNote.grad : currentActivity.grad) ? "text-white" : "bg-transparent")}
-                            style={(activePage === 'editor' ? currentNote.grad : currentActivity.grad) ? { background: activePage === 'editor' ? currentNote.grad : currentActivity.grad } : {}}
-                            value={activePage === 'editor' ? currentNote.body : currentActivity.body}
-                            onChange={e => activePage === 'editor' ? setCurrentNote({ ...currentNote, body: e.target.value }) : setCurrentActivity({ ...currentActivity, body: e.target.value })} />
+                        {activePage === 'editor' ? (
+                            <textarea ref={textareaRef} placeholder="Escribe aquí..."
+                                className={cn("w-full min-h-[350px] p-4 rounded-3xl outline-none font-semibold text-sm leading-8 transition-colors", currentNote.grad ? "text-white" : "bg-transparent")}
+                                style={currentNote.grad ? { background: currentNote.grad } : {}}
+                                value={currentNote.body}
+                                onChange={e => setCurrentNote({ ...currentNote, body: e.target.value })} />
+                        ) : (
+                            <div className="w-full min-h-[150px] p-12 rounded-[3.5rem] flex items-center justify-center border-4 border-dashed border-indigo-500/10" style={{ background: currentActivity.grad }}>
+                                <Activity size={64} className="text-white/20" />
+                            </div>
+                        )}
 
                         <div className="flex gap-3">
                             <button onClick={activePage === 'editor' ? saveNote : saveActivity} className="flex-1 py-4 bg-indigo-500 text-white rounded-2xl font-black tracking-widest shadow-xl shadow-indigo-500/30 uppercase">GUARDAR</button>
