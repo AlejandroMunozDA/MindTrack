@@ -1156,10 +1156,10 @@ export default function App() {
                         <div className="flex items-center justify-between">
                             {activePage === 'editor' && (
                                 <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-2xl w-fit">
-                                    <button onClick={() => applyFmt('bold', 'note')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Bold size={16} /></button>
-                                    <button onClick={() => applyFmt('underline', 'note')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Underline size={16} /></button>
-                                    <button onClick={() => applyFmt('strike', 'note')} className="p-2 px-3 rounded-xl hover:bg-white dark:hover:bg-white/10 text-xs font-black line-through text-indigo-500">S</button>
-                                    <button onClick={() => applyFmt('list', 'note')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 text-indigo-500"><List size={16} /></button>
+                                    <button onPointerDown={e => { e.preventDefault(); applyFmt('bold', 'note'); }} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Bold size={16} /></button>
+                                    <button onPointerDown={e => { e.preventDefault(); applyFmt('underline', 'note'); }} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Underline size={16} /></button>
+                                    <button onPointerDown={e => { e.preventDefault(); applyFmt('strike', 'note'); }} className="p-2 px-3 rounded-xl hover:bg-white dark:hover:bg-white/10 text-xs font-black line-through text-indigo-500">S</button>
+                                    <button onPointerDown={e => { e.preventDefault(); applyFmt('list', 'note'); }} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 text-indigo-500"><List size={16} /></button>
                                 </div>
                             )}
 
