@@ -1058,25 +1058,25 @@ export default function App() {
                                 <input
                                     type="text"
                                     placeholder="BUSCAR EN LECTURA..."
-                                    className="w-full bg-gray-100 dark:bg-white/5 border border-indigo-500/10 py-5 px-6 pl-14 rounded-[2rem] outline-none focus:border-indigo-500 font-black uppercase text-[10px] tracking-widest transition-all shadow-inner"
+                                    className="w-full bg-gray-100 dark:bg-white/5 border border-indigo-500/10 py-3 md:py-5 px-4 md:px-6 pl-12 md:pl-14 rounded-2xl md:rounded-[2rem] outline-none focus:border-indigo-500 font-black uppercase text-[9px] md:text-[10px] tracking-widest transition-all shadow-inner"
                                     value={readingSearchQuery}
                                     onChange={e => setReadingSearchQuery(e.target.value)}
                                 />
-                                <Search size={22} className="absolute left-6 top-1/2 -translate-y-1/2 text-indigo-500/50" />
+                                <Search size={20} className="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 text-indigo-500/50" />
                             </div>
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="aspect-square w-[60px] flex items-center justify-center bg-indigo-500 text-white rounded-[1.5rem] shadow-xl shadow-indigo-500/30 active:scale-90 transition-all"
+                                className="aspect-square w-[44px] md:w-[60px] flex items-center justify-center bg-indigo-500 text-white rounded-2xl md:rounded-[1.5rem] shadow-xl shadow-indigo-500/30 active:scale-90 transition-all"
                                 title="Subir PDF"
                             >
-                                <Plus size={28} />
+                                <Plus className="w-6 h-6 md:w-7 md:h-7" />
                             </button>
                         </div>
 
-                        <div className="flex flex-col md:flex-row gap-6 md:min-h-[550px]">
+                        <div className="flex flex-col md:flex-row gap-4 md:gap-6 md:min-h-[550px]">
                             {/* RECUADRO IZQUIERDO: LISTA DE PDFS */}
-                            <div className="flex-1 bg-gray-50 dark:bg-white/5 rounded-[3rem] p-6 md:p-8 relative shadow-inner border border-indigo-500/10 h-[350px] md:h-[550px] overflow-y-auto scrollbar-hide">
-                                <div className="flex items-center justify-between mb-8 pb-4 border-b border-indigo-500/5">
+                            <div className="flex-1 bg-gray-50 dark:bg-white/5 rounded-3xl md:rounded-[3rem] p-4 md:p-8 relative shadow-inner border border-indigo-500/10 h-[280px] md:h-[550px] overflow-y-auto scrollbar-hide">
+                                <div className="flex items-center justify-between mb-4 md:mb-8 pb-3 md:pb-4 border-b border-indigo-500/5">
                                     <h2 className="text-2xl font-black uppercase italic tracking-tighter text-indigo-500">{selectedReadingCat}</h2>
                                 </div>
                                 <div className="space-y-4">
@@ -1085,7 +1085,7 @@ export default function App() {
                                         .map(file => (
                                             <div
                                                 key={file.id}
-                                                className="group relative flex items-center gap-4 md:gap-6 bg-white dark:bg-white/5 p-4 rounded-[2.5rem] border border-indigo-500/5 cursor-pointer hover:shadow-2xl hover:bg-indigo-500/[0.02] transition-all duration-300 overflow-hidden"
+                                                className="group relative flex items-center gap-3 md:gap-6 bg-white dark:bg-white/5 p-3 md:p-4 rounded-3xl md:rounded-[2.5rem] border border-indigo-500/5 cursor-pointer hover:shadow-2xl hover:bg-indigo-500/[0.02] transition-all duration-300 overflow-hidden"
                                                 onClick={() => openPdf(file)}
                                             >
                                                 {/* Portada del PDF */}
@@ -1103,10 +1103,10 @@ export default function App() {
                                                     </span>
                                                 </div>
 
-                                                <div className="flex gap-2 mr-2">
-                                                    <button onClick={(e) => { e.stopPropagation(); setEditingFileId(file.id); setNewFileName(file.name); setIsEditFileNameModalOpen(true); }} className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl hover:bg-indigo-500 hover:text-white transition-all"><Edit2 size={16} /></button>
-                                                    <button onClick={(e) => { e.stopPropagation(); downloadFile(file); }} className="p-3 bg-green-500/10 text-green-500 rounded-2xl hover:bg-green-500 hover:text-white transition-all"><Download size={16} /></button>
-                                                    <button onClick={(e) => { e.stopPropagation(); openDeleteConfirm(file.id, 'pdf_file', file.name); }} className="p-3 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16} /></button>
+                                                <div className="flex gap-1 md:gap-2 mr-1 md:mr-2">
+                                                    <button onClick={(e) => { e.stopPropagation(); setEditingFileId(file.id); setNewFileName(file.name); setIsEditFileNameModalOpen(true); }} className="p-2 md:p-3 bg-indigo-500/10 text-indigo-500 rounded-xl md:rounded-2xl hover:bg-indigo-500 hover:text-white transition-all"><Edit2 className="w-3 h-3 md:w-4 md:h-4" /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); downloadFile(file); }} className="p-2 md:p-3 bg-green-500/10 text-green-500 rounded-xl md:rounded-2xl hover:bg-green-500 hover:text-white transition-all"><Download className="w-3 h-3 md:w-4 md:h-4" /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); openDeleteConfirm(file.id, 'pdf_file', file.name); }} className="p-2 md:p-3 bg-red-500/10 text-red-500 rounded-xl md:rounded-2xl hover:bg-red-500 hover:text-white transition-all"><Trash2 className="w-3 h-3 md:w-4 md:h-4" /></button>
                                                 </div>
                                             </div>
                                         ))}
@@ -1117,15 +1117,15 @@ export default function App() {
                             </div>
 
                             {/* RECUADRO DERECHO: SECCIONES */}
-                            <div className="w-full md:w-64 bg-gray-50 dark:bg-white/5 rounded-[3rem] p-6 md:p-8 shadow-inner border border-indigo-500/10 h-[300px] md:h-[550px] flex flex-col">
-                                <h2 className="text-xl font-black uppercase italic tracking-tighter text-indigo-500 mb-8 pb-4 border-b border-indigo-500/5 text-center">Secciones</h2>
+                            <div className="w-full md:w-64 bg-gray-50 dark:bg-white/5 rounded-3xl md:rounded-[3rem] p-4 md:p-8 shadow-inner border border-indigo-500/10 h-[220px] md:h-[550px] flex flex-col">
+                                <h2 className="text-sm md:text-xl font-black uppercase italic tracking-tighter text-indigo-500 mb-4 md:mb-8 pb-3 md:pb-4 border-b border-indigo-500/5 text-center">Secciones</h2>
                                 <div className="flex-1 overflow-y-auto scrollbar-hide space-y-3">
                                     {readingCategories.map((cat, index) => (
                                         <div key={cat} className="group relative">
                                             <button
                                                 onClick={() => setSelectedReadingCat(cat)}
                                                 className={cn(
-                                                    "w-full px-5 py-5 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest transition-all flex items-center justify-between",
+                                                    "w-full px-4 py-3 md:px-5 md:py-5 rounded-2xl md:rounded-[1.5rem] font-black text-[9px] md:text-[11px] uppercase tracking-widest transition-all flex items-center justify-between",
                                                     selectedReadingCat === cat ? "bg-indigo-500 text-white shadow-xl scale-[1.02]" : "bg-white dark:bg-white/5 text-gray-400 hover:bg-indigo-500/5 hover:text-indigo-500"
                                                 )}
                                             >
@@ -1138,8 +1138,8 @@ export default function App() {
                                         </div>
                                     ))}
                                 </div>
-                                <button onClick={() => { setEditingCatIndex(null); setNewCatName(""); setIsNewCatModalOpen(true); }} className="w-full mt-6 py-4 bg-indigo-500 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/30 hover:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                                    <Plus size={16} />
+                                <button onClick={() => { setEditingCatIndex(null); setNewCatName(""); setIsNewCatModalOpen(true); }} className="w-full mt-4 md:mt-6 py-3 md:py-4 bg-indigo-500 text-white rounded-2xl md:rounded-[1.5rem] font-black text-[9px] md:text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-500/30 hover:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                                    <Plus className="w-3 h-3 md:w-4 md:h-4" />
                                     NUEVA SECCIÓN
                                 </button>
                             </div>
