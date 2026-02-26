@@ -927,7 +927,7 @@ export default function App() {
                                         <div className="relative z-10 flex items-center justify-between">
                                             <div>
                                                 <h3 className="font-black text-white text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] uppercase tracking-tight italic">{habit.name}</h3>
-                                                <div className="flex gap-1 mt-2">{habit.days.map(d => <span key={d} className="text-[8px] font-black px-1.5 py-0.5 rounded bg-black/30 text-white border border-white/10 uppercase">{d}</span>)}</div>
+                                                <div className="flex gap-1 mt-2">{habit.days.map(d => <span key={d} className="text-[6.5px] md:text-[8px] font-black px-1 md:px-1.5 py-[2px] md:py-0.5 rounded bg-black/30 text-white border border-white/10 uppercase">{d}</span>)}</div>
                                             </div>
                                             <div className="flex gap-1 items-center">
                                                 <button onClick={() => toggleHabit(habit.id)} className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/20 transition-all">{habit.completed ? <CheckCircle size={22} /> : <Circle size={22} />}</button>
