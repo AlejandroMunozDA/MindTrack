@@ -93,6 +93,11 @@ export default function App() {
 
     const fileInputRef = useRef(null)
     const textareaRef = useRef(null)
+    const selectionRef = useRef({ start: 0, end: 0 })
+
+    const handleSelect = (e) => {
+        selectionRef.current = { start: e.target.selectionStart, end: e.target.selectionEnd }
+    }
 
     useEffect(() => { localStorage.setItem('habitos_h', JSON.stringify(habits)) }, [habits])
     useEffect(() => { localStorage.setItem('habitos_n', JSON.stringify(notes)) }, [notes])
@@ -600,6 +605,12 @@ export default function App() {
         let start = ta.selectionStart
         let end = ta.selectionEnd
 
+        // Respaldo móvil: si se vació la selección por perder el foco, usamos la última selección conocida
+        if (start === end && selectionRef.current.start !== selectionRef.current.end) {
+            start = selectionRef.current.start
+            end = selectionRef.current.end
+        }
+
         // Ajuste móvil: si se seleccionó texto con un espacio final (común en Android/iOS), lo ignoramos del formato para no corromper la selección.
         const originalVal = ta.value;
         if (start !== end && originalVal[end - 1] === ' ' && type !== 'list') {
@@ -659,9 +670,14 @@ export default function App() {
         if (target === 'note') setCurrentNote({ ...currentNote, body: finalContent })
         else setCurrentActivity({ ...currentActivity, body: finalContent })
 
+        // Actualizamos el respaldo por si se presiona otro botón de formato en cadena
+        const newStart = start;
+        const newEnd = start + res.length + (ta.selectionEnd !== end && type !== 'list' ? 1 : 0);
+        selectionRef.current = { start: newStart, end: newEnd };
+
         setTimeout(() => {
             ta.focus()
-            ta.setSelectionRange(start, start + res.length + (ta.selectionEnd !== end && type !== 'list' ? 1 : 0))
+            ta.setSelectionRange(newStart, newEnd)
         }, 50) // Incrementamos el timeout a 50ms para teclados móviles virtuales
     }
 
@@ -1156,10 +1172,10 @@ export default function App() {
                         <div className="flex items-center justify-between">
                             {activePage === 'editor' && (
                                 <div className="flex gap-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-2xl w-fit">
-                                    <button onPointerDown={e => { e.preventDefault(); applyFmt('bold', 'note'); }} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Bold size={16} /></button>
-                                    <button onPointerDown={e => { e.preventDefault(); applyFmt('underline', 'note'); }} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Underline size={16} /></button>
-                                    <button onPointerDown={e => { e.preventDefault(); applyFmt('strike', 'note'); }} className="p-2 px-3 rounded-xl hover:bg-white dark:hover:bg-white/10 text-xs font-black line-through text-indigo-500">S</button>
-                                    <button onPointerDown={e => { e.preventDefault(); applyFmt('list', 'note'); }} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 text-indigo-500"><List size={16} /></button>
+                                    <button onMouseDown={e => e.preventDefault()} onClick={() => applyFmt('bold', 'note')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Bold size={16} /></button>
+                                    <button onMouseDown={e => e.preventDefault()} onClick={() => applyFmt('underline', 'note')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 flex items-center justify-center text-indigo-500"><Underline size={16} /></button>
+                                    <button onMouseDown={e => e.preventDefault()} onClick={() => applyFmt('strike', 'note')} className="p-2 px-3 rounded-xl hover:bg-white dark:hover:bg-white/10 text-xs font-black line-through text-indigo-500">S</button>
+                                    <button onMouseDown={e => e.preventDefault()} onClick={() => applyFmt('list', 'note')} className="p-2 rounded-xl hover:bg-white dark:hover:bg-white/10 text-indigo-500"><List size={16} /></button>
                                 </div>
                             )}
 
@@ -1175,10 +1191,13 @@ export default function App() {
 
                         {activePage === 'editor' ? (
                             <textarea ref={textareaRef} placeholder="Escribe aquí..."
+                                onSelect={handleSelect}
+                                onBlur={handleSelect}
+                                onKeyUp={handleSelect}
                                 className={cn("w-full min-h-[350px] p-4 rounded-3xl outline-none font-semibold text-sm leading-8 transition-colors", currentNote.grad ? "text-white" : "bg-transparent")}
                                 style={currentNote.grad ? { background: currentNote.grad } : {}}
                                 value={currentNote.body}
-                                onChange={e => setCurrentNote({ ...currentNote, body: e.target.value })} />
+                                onChange={e => { handleSelect(e); setCurrentNote({ ...currentNote, body: e.target.value }); }} />
                         ) : (
                             <div className="w-full min-h-[150px] p-12 rounded-[3.5rem] flex items-center justify-center border-4 border-dashed border-indigo-500/10" style={{ background: currentActivity.grad }}>
                                 <Activity size={64} className="text-white/20" />
