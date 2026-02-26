@@ -600,15 +600,20 @@ export default function App() {
         let start = ta.selectionStart
         let end = ta.selectionEnd
 
-        if (type === 'list') {
-            const val = ta.value;
-            while (start > 0 && val[start - 1] !== '\n') start--;
-            while (end < val.length && val[end] !== '\n') end++;
+        // Ajuste móvil: si se seleccionó texto con un espacio final (común en Android/iOS), lo ignoramos del formato para no corromper la selección.
+        const originalVal = ta.value;
+        if (start !== end && originalVal[end - 1] === ' ' && type !== 'list') {
+            end--;
         }
 
-        const sel = ta.value.substring(start, end)
-        const before = ta.value.substring(0, start)
-        const after = ta.value.substring(end)
+        if (type === 'list') {
+            while (start > 0 && originalVal[start - 1] !== '\n') start--;
+            while (end < originalVal.length && originalVal[end] !== '\n') end++;
+        }
+
+        const sel = originalVal.substring(start, end)
+        const before = originalVal.substring(0, start)
+        const after = originalVal.substring(end)
 
         if (!sel && type !== 'list') return
 
@@ -644,14 +649,20 @@ export default function App() {
                 : lines.map(l => (l.startsWith('• ') || l.trim() === '') ? l : '• ' + l).join('\n')
         }
 
-        const finalContent = before + res + after
+        // Si se excluyó un espacio al final por el ajuste móvil, lo re-agregamos al "after"
+        let finalAfter = after;
+        if (ta.selectionEnd !== end && type !== 'list') {
+            finalAfter = ' ' + finalAfter.substring(1);
+        }
+
+        const finalContent = before + res + finalAfter
         if (target === 'note') setCurrentNote({ ...currentNote, body: finalContent })
         else setCurrentActivity({ ...currentActivity, body: finalContent })
 
         setTimeout(() => {
             ta.focus()
-            ta.setSelectionRange(start, start + res.length)
-        }, 10)
+            ta.setSelectionRange(start, start + res.length + (ta.selectionEnd !== end && type !== 'list' ? 1 : 0))
+        }, 50) // Incrementamos el timeout a 50ms para teclados móviles virtuales
     }
 
     const getNotePriorityCount = (grad) => notes.filter(n => n.grad === grad && !n.done).length
@@ -1017,20 +1028,20 @@ export default function App() {
                             {activities
                                 .filter(act => !activityPriorityFilter || act.grad === activityPriorityFilter)
                                 .map(act => (
-                                    <div key={act.id} className={cn("p-4 rounded-2xl flex items-center justify-between transition-all", act.done ? "opacity-40 grayscale scale-[0.98]" : "shadow-md")}
-                                        style={{ background: act.done ? 'rgba(0,0,0,0.05)' : act.grad }}>
+                                    <div key={act.id} className={cn("p-4 rounded-2xl flex items-center justify-between transition-all", act.done ? "opacity-40 grayscale scale-[0.98] border border-gray-300 dark:border-white/5" : "shadow-md border border-transparent")}
+                                        style={{ background: act.done ? 'transparent' : act.grad }}>
                                         <div className="flex items-center gap-4 flex-1 min-w-0">
                                             <button onClick={() => toggleActivityDone(act.id)}
-                                                className="w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center shrink-0 text-white">
+                                                className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors", act.done ? "text-gray-500" : "bg-white/20 border border-white/30 text-white")}>
                                                 {act.done ? <CheckCircle size={22} strokeWidth={3} /> : <div className="w-5 h-5 border-2 border-white/50 rounded-md"></div>}
                                             </button>
                                             <div className="flex-1 min-w-0 flex items-center">
-                                                <h4 className="font-black text-white text-sm uppercase tracking-tight truncate drop-shadow-sm">{act.title}</h4>
+                                                <h4 className={cn("font-black text-sm uppercase tracking-tight truncate", act.done ? "text-gray-600 dark:text-gray-400" : "text-white drop-shadow-sm")}>{act.title}</h4>
                                             </div>
                                         </div>
                                         <div className="flex gap-1 ml-4 shrink-0">
-                                            <button onClick={() => { setEditingActivityId(act.id); setCurrentActivity(act); setActivePage('editor_act'); }} className="p-2 text-white/70 hover:text-white"><Edit2 size={16} /></button>
-                                            <button onClick={() => openDeleteConfirm(act.id, 'activity', act.title)} className="p-2 text-white/50 hover:text-white hover:text-red-300"><Trash2 size={16} /></button>
+                                            <button onClick={() => { setEditingActivityId(act.id); setCurrentActivity(act); setActivePage('editor_act'); }} className={cn("p-2 transition-colors", act.done ? "text-gray-400 hover:text-indigo-500" : "text-white/70 hover:text-white")}><Edit2 size={16} /></button>
+                                            <button onClick={() => openDeleteConfirm(act.id, 'activity', act.title)} className={cn("p-2 transition-colors", act.done ? "text-gray-400 hover:text-red-500" : "text-white/50 hover:text-white hover:text-red-300")}><Trash2 size={16} /></button>
                                         </div>
                                     </div>
                                 ))}
@@ -1074,13 +1085,13 @@ export default function App() {
                                         .map(file => (
                                             <div
                                                 key={file.id}
-                                                className="group relative flex items-center gap-6 bg-white dark:bg-white/5 p-4 rounded-[2.5rem] border border-indigo-500/5 cursor-pointer hover:shadow-2xl hover:bg-indigo-500/[0.02] transition-all duration-300 overflow-hidden"
+                                                className="group relative flex items-center gap-4 md:gap-6 bg-white dark:bg-white/5 p-4 rounded-[2.5rem] border border-indigo-500/5 cursor-pointer hover:shadow-2xl hover:bg-indigo-500/[0.02] transition-all duration-300 overflow-hidden"
                                                 onClick={() => openPdf(file)}
                                             >
                                                 {/* Portada del PDF */}
-                                                <div className="w-16 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex flex-col items-center justify-center text-white shrink-0 border border-white/10 shadow-lg group-hover:rotate-2 transition-transform">
-                                                    <FileText size={32} strokeWidth={2.5} />
-                                                    <span className="text-[8px] font-black uppercase mt-1 tracking-widest opacity-80">PDF</span>
+                                                <div className="w-10 h-14 md:w-16 md:h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-lg md:rounded-xl flex flex-col items-center justify-center text-white shrink-0 border border-white/10 shadow-lg group-hover:rotate-2 transition-transform">
+                                                    <FileText className="w-5 h-5 md:w-8 md:h-8" strokeWidth={2.5} />
+                                                    <span className="hidden md:block text-[8px] font-black uppercase mt-1 tracking-widest opacity-80">PDF</span>
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
