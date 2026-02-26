@@ -76,7 +76,7 @@ export default function App() {
         const saved = localStorage.getItem('reading_cats')
         return saved ? JSON.parse(saved) : ["Educativo", "Para mi"]
     })
-    const [selectedReadingCat, setSelectedReadingCat] = useState("Educativo")
+    const [selectedReadingCat, setSelectedReadingCat] = useState(() => localStorage.getItem('selected_reading_cat') || "Educativo")
     const [isNewCatModalOpen, setIsNewCatModalOpen] = useState(false)
     const [newCatName, setNewCatName] = useState("")
     const [editingCatIndex, setEditingCatIndex] = useState(null)
@@ -96,6 +96,7 @@ export default function App() {
     useEffect(() => { localStorage.setItem('habitos_pd', JSON.stringify([...perfectDays])) }, [perfectDays])
     useEffect(() => { localStorage.setItem('reading_cats', JSON.stringify(readingCategories)) }, [readingCategories])
     useEffect(() => { localStorage.setItem('reading_files', JSON.stringify(readingFiles)) }, [readingFiles])
+    useEffect(() => { localStorage.setItem('selected_reading_cat', selectedReadingCat) }, [selectedReadingCat])
     useEffect(() => { localStorage.setItem('mindtrack_agenda', JSON.stringify(agendaEvents)) }, [agendaEvents])
 
     useEffect(() => {
@@ -167,7 +168,14 @@ export default function App() {
         } else {
             setReadingCategories(["Educativo", "Para mi"])
         }
-        if (dbFiles) setReadingFiles(dbFiles)
+        if (dbFiles) {
+            // Combinamos archivos de la DB con locales que aún no se hayan subido (ids temporales)
+            setReadingFiles(prev => {
+                const localOnly = prev.filter(f => typeof f.id === 'number' && f.id > 1000000000000) // Filtro simple para IDs de Date.now()
+                const dbIds = new Set(dbFiles.map(f => f.id))
+                return [...dbFiles, ...localOnly.filter(f => !dbIds.has(f.id))]
+            })
+        }
     }
 
     const handleAuth = async (e) => {
@@ -316,27 +324,40 @@ export default function App() {
 
         const reader = new FileReader()
         reader.onload = async (event) => {
+            const tempId = Date.now()
             const fileData = {
+                id: tempId,
                 name: file.name,
                 category: selectedReadingCat,
                 data: event.target.result,
                 date: new Date().toLocaleDateString()
             }
 
-            let savedFile;
-            if (user) {
-                const { data } = await supabase.from('reading_files').insert([{
-                    user_id: user.id,
-                    name: fileData.name,
-                    category: fileData.category,
-                    file_url: fileData.data, // Por ahora guardamos base64 en la DB para simplificar sin storage buckets complejos
-                    file_name_storage: file.name,
-                    date: fileData.date
-                }]).select()
-                savedFile = data[0]
-            }
+            // Actualización optimista local
+            setReadingFiles(prev => [...prev, fileData])
 
-            setReadingFiles([...readingFiles, savedFile || { id: Date.now(), ...fileData }])
+            if (user) {
+                try {
+                    const { data, error } = await supabase.from('reading_files').insert([{
+                        user_id: user.id,
+                        name: fileData.name,
+                        category: fileData.category,
+                        file_url: fileData.data,
+                        file_name_storage: file.name,
+                        date: fileData.date
+                    }]).select()
+
+                    if (error) throw error
+
+                    if (data && data[0]) {
+                        // Reemplazamos el temporal con el real de la DB
+                        setReadingFiles(prev => prev.map(f => f.id === tempId ? data[0] : f))
+                    }
+                } catch (err) {
+                    console.error("Error al subir archivo:", err)
+                    // El archivo permanece localmente (en el estado de la sesión)
+                }
+            }
         }
         reader.readAsDataURL(file)
         e.target.value = ""
@@ -344,7 +365,7 @@ export default function App() {
 
     const downloadFile = (file) => {
         const link = document.createElement('a')
-        link.href = file.data
+        link.href = file.file_url || file.data
         link.download = file.name
         link.click()
     }
@@ -928,7 +949,11 @@ export default function App() {
                                             <div
                                                 key={file.id}
                                                 className="group relative flex items-center gap-6 bg-white dark:bg-white/5 p-4 rounded-[2.5rem] border border-indigo-500/5 cursor-pointer hover:shadow-2xl hover:bg-indigo-500/[0.02] transition-all duration-300 overflow-hidden"
-                                                onClick={() => { const win = window.open(); win.document.write(`<iframe src="${file.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`); }}
+                                                onClick={() => {
+                                                    const fileUrl = file.file_url || file.data;
+                                                    const win = window.open();
+                                                    win.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                                }}
                                             >
                                                 {/* Portada del PDF */}
                                                 <div className="w-16 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex flex-col items-center justify-center text-white shrink-0 border border-white/10 shadow-lg group-hover:rotate-2 transition-transform">
