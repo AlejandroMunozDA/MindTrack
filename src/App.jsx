@@ -380,6 +380,45 @@ export default function App() {
         link.click()
     }
 
+    const openPdf = (file) => {
+        const fileUrl = file.file_url || file.data;
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        if (isMobile && fileUrl.startsWith('data:')) {
+            try {
+                const arr = fileUrl.split(',');
+                const mime = arr[0].match(/:(.*?);/)[1];
+                const bstr = atob(arr[1]);
+                let n = bstr.length;
+                const u8arr = new Uint8Array(n);
+                while (n--) {
+                    u8arr[n] = bstr.charCodeAt(n);
+                }
+                const blob = new Blob([u8arr], { type: mime });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.click();
+
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+            } catch (err) {
+                console.error("Error convirtiendo PDF, forzando descarga:", err);
+                downloadFile(file);
+            }
+        } else if (isMobile) {
+            window.open(fileUrl, '_blank');
+        } else {
+            const win = window.open();
+            if (win) {
+                win.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+            } else {
+                alert("Habilita las ventanas emergentes (pop-ups) en tu navegador para ver el PDF.");
+            }
+        }
+    }
+
     const saveHabit = async () => {
         if (!newHabit.name.trim()) return alert('Nombre obligatorio')
         if (newHabit.days.length === 0) return alert('Selecciona días')
@@ -557,24 +596,46 @@ export default function App() {
     const applyFmt = (type, target) => {
         const ta = textareaRef.current
         if (!ta) return
-        const start = ta.selectionStart
-        const end = ta.selectionEnd
+
+        let start = ta.selectionStart
+        let end = ta.selectionEnd
+
+        if (type === 'list') {
+            const val = ta.value;
+            while (start > 0 && val[start - 1] !== '\n') start--;
+            while (end < val.length && val[end] !== '\n') end++;
+        }
+
         const sel = ta.value.substring(start, end)
         const before = ta.value.substring(0, start)
         const after = ta.value.substring(end)
+
+        if (!sel && type !== 'list') return
 
         let res = sel
 
         if (type === 'bold') {
             const chars = Array.from(sel)
-            const isAllBold = chars.every(ch => ' \n\t'.includes(ch) || !!REVERSE_BOLD_MAP[ch] || ch === STRIKE || ch === UNDERLINE)
+            const isAllBold = chars.every(ch => ' \n\t\r'.includes(ch) || !!REVERSE_BOLD_MAP[ch] || ch === STRIKE || ch === UNDERLINE)
             res = chars.map(ch => isAllBold ? (REVERSE_BOLD_MAP[ch] || ch) : (BOLD_MAP[ch] || ch)).join('')
         } else if (type === 'strike') {
             const hasStrike = sel.includes(STRIKE)
-            res = hasStrike ? sel.split(STRIKE).join('') : Array.from(sel).map(ch => ch === '\n' ? ch : ch + STRIKE).join('')
+            res = sel.split(STRIKE).join('')
+            if (!hasStrike) {
+                res = Array.from(res).map(ch => {
+                    if (ch === '\n' || ch === '\r' || ch === UNDERLINE || ch === STRIKE) return ch
+                    return ch + STRIKE
+                }).join('')
+            }
         } else if (type === 'underline') {
             const hasUnderline = sel.includes(UNDERLINE)
-            res = hasUnderline ? sel.split(UNDERLINE).join('') : Array.from(sel).map(ch => ch === '\n' ? ch : ch + UNDERLINE).join('')
+            res = sel.split(UNDERLINE).join('')
+            if (!hasUnderline) {
+                res = Array.from(res).map(ch => {
+                    if (ch === '\n' || ch === '\r' || ch === STRIKE || ch === UNDERLINE) return ch
+                    return ch + UNDERLINE
+                }).join('')
+            }
         } else if (type === 'list') {
             const lines = sel.split('\n')
             const isAllList = lines.every(l => l.startsWith('• ') || l.trim() === '')
@@ -585,7 +646,6 @@ export default function App() {
 
         const finalContent = before + res + after
         if (target === 'note') setCurrentNote({ ...currentNote, body: finalContent })
-        // El editor de actividades ahora es simplificado y no usa body, pero mantenemos por consistencia
         else setCurrentActivity({ ...currentActivity, body: finalContent })
 
         setTimeout(() => {
@@ -1015,11 +1075,7 @@ export default function App() {
                                             <div
                                                 key={file.id}
                                                 className="group relative flex items-center gap-6 bg-white dark:bg-white/5 p-4 rounded-[2.5rem] border border-indigo-500/5 cursor-pointer hover:shadow-2xl hover:bg-indigo-500/[0.02] transition-all duration-300 overflow-hidden"
-                                                onClick={() => {
-                                                    const fileUrl = file.file_url || file.data;
-                                                    const win = window.open();
-                                                    win.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                                                }}
+                                                onClick={() => openPdf(file)}
                                             >
                                                 {/* Portada del PDF */}
                                                 <div className="w-16 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex flex-col items-center justify-center text-white shrink-0 border border-white/10 shadow-lg group-hover:rotate-2 transition-transform">
