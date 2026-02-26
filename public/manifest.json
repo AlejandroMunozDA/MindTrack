@@ -1,0 +1,29 @@
+{
+    "name": "MindTrack",
+    "short_name": "MindTrack",
+    "start_url": ".",
+    "display": "standalone",
+    "theme_color": "#0f0f14",
+    "background_color": "#0f0f14",
+    "description": "Tu mente, organizada. Tu progreso, asegurado.",
+    "icons": [
+        {
+            "src": "/icon-192.svg",
+            "sizes": "192x192",
+            "type": "image/svg+xml"
+        },
+        {
+            "src": "/icon-512.svg",
+            "sizes": "512x512",
+            "type": "image/svg+xml"
+        },
+        {
+            "src": "/icon-512.svg",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "orientation": "portrait",
+    "lang": "es-MX"
+}
