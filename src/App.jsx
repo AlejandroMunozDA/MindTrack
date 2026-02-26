@@ -60,6 +60,7 @@ export default function App() {
     const [isHabitModalOpen, setIsHabitModalOpen] = useState(false)
     const [newHabit, setNewHabit] = useState({ name: '', days: [], grad: PALETTE[0].grad, hex: PALETTE[0].hex })
     const [editingHabitId, setEditingHabitId] = useState(null)
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null, type: null, name: '', data: null })
     const [isCalendarOpen, setIsCalendarOpen] = useState(false)
     const [currentCalDate, setCurrentCalDate] = useState(new Date())
@@ -690,26 +691,26 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-white dark:bg-[#0f0f14] text-black dark:text-white transition-colors duration-300">
-            <header className="sticky top-0 z-40 bg-white/80 dark:bg-[#0f0f14]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between">
-                <div className="w-48 flex items-center gap-1">
-                    <button onClick={() => setActivePage('agenda')} className={cn("p-2 rounded-full transition-colors", activePage === 'agenda' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Agenda">
-                        <ClipboardList size={20} />
+            <header className="sticky top-0 z-[100] bg-white/80 dark:bg-[#0f0f14]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 md:hidden text-gray-400 hover:text-indigo-500 transition-colors">
+                        <Menu size={24} />
                     </button>
-                    <button onClick={() => setActivePage('habitos')} className={cn("p-2 rounded-full transition-colors", activePage === 'habitos' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Hábitos">
-                        <Flame size={20} />
-                    </button>
-                    <button onClick={() => setActivePage('notes')} className={cn("p-2 rounded-full transition-colors", activePage === 'notes' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Notas">
-                        <FileText size={20} />
-                    </button>
-                    <button onClick={() => setActivePage('lectura')} className={cn("p-2 rounded-full transition-colors", activePage === 'lectura' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Lectura">
-                        <BookOpen size={20} />
-                    </button>
-                    <button onClick={() => setActivePage('actividades')} className={cn("p-2 rounded-full transition-colors", activePage === 'actividades' ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")} title="Actividades">
-                        <Activity size={20} />
-                    </button>
+                    <div className="hidden md:flex items-center gap-1 bg-gray-100 dark:bg-white/5 p-1 rounded-full border border-indigo-500/5">
+                        <button onClick={() => setActivePage('agenda')} className={cn("p-2 rounded-full transition-all", activePage === 'agenda' ? "text-white bg-indigo-500 shadow-md" : "text-gray-400 hover:text-indigo-500")} title="Agenda"><ClipboardList size={18} /></button>
+                        <button onClick={() => setActivePage('habitos')} className={cn("p-2 rounded-full transition-all", activePage === 'habitos' ? "text-white bg-indigo-500 shadow-md" : "text-gray-400 hover:text-indigo-500")} title="Hábitos"><Flame size={18} /></button>
+                        <button onClick={() => setActivePage('notes')} className={cn("p-2 rounded-full transition-all", activePage === 'notes' ? "text-white bg-indigo-500 shadow-md" : "text-gray-400 hover:text-indigo-500")} title="Notas"><FileText size={18} /></button>
+                        <button onClick={() => setActivePage('lectura')} className={cn("p-2 rounded-full transition-all", activePage === 'lectura' ? "text-white bg-indigo-500 shadow-md" : "text-gray-400 hover:text-indigo-500")} title="Lectura"><BookOpen size={18} /></button>
+                        <button onClick={() => setActivePage('actividades')} className={cn("p-2 rounded-full transition-all", activePage === 'actividades' ? "text-white bg-indigo-500 shadow-md" : "text-gray-400 hover:text-indigo-500")} title="Actividades"><Activity size={18} /></button>
+                    </div>
+                    <div className="md:hidden flex items-center gap-2">
+                        <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center rotate-12 shadow-lg shadow-indigo-500/20">
+                            <Layout size={18} className="text-white -rotate-12" />
+                        </div>
+                    </div>
                 </div>
 
-                <h1 className="text-lg font-black tracking-tight uppercase italic text-center flex-1">
+                <h1 className="text-sm md:text-lg font-black tracking-tight uppercase italic text-center flex-1 truncate px-2">
                     {activePage === 'habitos' && 'MIS HÁBITOS'}
                     {activePage === 'notes' && 'NOTAS'}
                     {activePage === 'lectura' && 'LECTURA'}
@@ -719,15 +720,10 @@ export default function App() {
                     {activePage === 'editor_act' && 'EDITOR DE ACTIVIDAD'}
                 </h1>
 
-                <div className="flex gap-2 w-52 justify-end items-center">
+                <div className="flex gap-1 md:gap-2 justify-end items-center">
                     <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-transform active:scale-90">
                         {isDark ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
-                    {activePage === 'habitos' && (
-                        <button onClick={() => setIsCalendarOpen(true)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 text-indigo-500 transition-transform active:scale-90" title="Historial">
-                            <Calendar size={20} />
-                        </button>
-                    )}
                     {(activePage === 'habitos' || activePage === 'notes' || activePage === 'actividades') && (
                         <button
                             onClick={() => {
@@ -743,11 +739,64 @@ export default function App() {
                     <button
                         onClick={() => setIsAccountModalOpen(true)}
                         className={cn("p-2 rounded-full transition-all active:scale-90", user ? "text-indigo-500 bg-indigo-500/10" : "text-gray-400 hover:bg-black/5 dark:hover:bg-white/5")}
-                        title={`Mi Perfil (${user.user_metadata?.full_name || user.email})`}
                     >
                         <UserCircle size={22} strokeWidth={2.5} />
                     </button>
                 </div>
+            </header>
+
+            {/* MOBILE MENU DRAWER */}
+            {isMobileMenuOpen && (
+                <div className="fixed inset-0 z-[150] md:hidden animate-in fade-in duration-300">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+                    <div className="absolute left-0 top-0 bottom-0 w-72 bg-white dark:bg-[#0f0f14] shadow-2xl p-8 flex flex-col animate-in slide-in-from-left duration-500 border-r border-indigo-500/10">
+                        <div className="flex items-center justify-between mb-12">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center rotate-12 shadow-lg shadow-indigo-500/20">
+                                    <Layout size={24} className="text-white -rotate-12" />
+                                </div>
+                                <span className="text-2xl font-black italic tracking-tighter uppercase text-indigo-900 dark:text-white">MindTrack</span>
+                            </div>
+                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-500"><X size={20} /></button>
+                        </div>
+                        
+                        <nav className="space-y-4 flex-1">
+                            {[
+                                { id: 'agenda', icon: <ClipboardList size={22} />, label: 'Agenda' },
+                                { id: 'habitos', icon: <Flame size={22} />, label: 'Mis Hábitos' },
+                                { id: 'notes', icon: <FileText size={22} />, label: 'Notas' },
+                                { id: 'lectura', icon: <BookOpen size={22} />, label: 'Lectura' },
+                                { id: 'actividades', icon: <Activity size={22} />, label: 'Actividades' },
+                            ].map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => { setActivePage(item.id); setIsMobileMenuOpen(false); }}
+                                    className={cn(
+                                        "w-full flex items-center gap-4 p-5 rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest transition-all",
+                                        activePage === item.id ? "bg-indigo-500 text-white shadow-xl translate-x-1" : "text-gray-400 hover:bg-indigo-500/5 hover:text-indigo-500"
+                                    )}
+                                >
+                                    {item.icon}
+                                    {item.label}
+                                </button>
+                            ))}
+                        </nav>
+
+                        <div className="pt-8 border-t border-indigo-500/5 space-y-4">
+                            <button onClick={() => { setIsDark(!isDark); setIsMobileMenuOpen(false); }} className="w-full flex items-center gap-4 p-5 rounded-[1.5rem] font-black uppercase text-[10px] tracking-widest text-gray-400">
+                                {isDark ? <Sun size={22} /> : <Moon size={22} />}
+                                {isDark ? 'Modo Claro' : 'Modo Oscuro'}
+                            </button>
+                            {user && (
+                                <div className="p-5 bg-indigo-500/5 rounded-[1.5rem] border border-indigo-500/10">
+                                    <p className="text-[8px] font-black uppercase opacity-40 mb-1 tracking-widest text-indigo-500">Sesión iniciada como</p>
+                                    <p className="text-xs font-black truncate text-indigo-900 dark:text-white uppercase italic">{user.user_metadata?.full_name || user.email}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
             </header>
 
             <main className={cn("mx-auto p-5 pb-20 transition-all duration-500", activePage === 'lectura' ? "max-w-4xl" : (activePage === 'habitos' ? "max-w-4xl" : "max-w-xl"))}>
@@ -1143,273 +1192,291 @@ export default function App() {
                 )}
             </main>
 
-            {/* SHARED DELETE MODAL */}
-            {deleteConfirm.isOpen && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-150">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-xs rounded-[40px] p-10 shadow-2xl text-center border border-white/5">
-                        <div className="bg-red-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle size={40} className="text-red-500" /></div>
-                        <h2 className="text-xl font-black uppercase italic tracking-tighter mb-2">¿Eliminar?</h2>
-                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">Estás a punto de borrar <span className="text-red-500">"{deleteConfirm.name}"</span>.</p>
-                        <div className="space-y-3">
-                            <button onClick={executeDelete} className="w-full py-4 bg-red-500 text-white rounded-2xl font-black tracking-widest shadow-xl shadow-red-500/20 uppercase">SÍ, ELIMINAR</button>
-                            <button onClick={() => setDeleteConfirm({ isOpen: false, id: null, type: null, name: '' })} className="w-full py-4 bg-gray-100 dark:bg-white/5 text-gray-400 rounded-2xl font-black tracking-widest text-[10px] uppercase">CANCELAR</button>
+            {/* SHARED DELETE MODAL */ }
+    {
+        deleteConfirm.isOpen && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-150">
+                <div className="bg-white dark:bg-[#1a1a26] w-full max-w-xs rounded-[40px] p-10 shadow-2xl text-center border border-white/5">
+                    <div className="bg-red-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle size={40} className="text-red-500" /></div>
+                    <h2 className="text-xl font-black uppercase italic tracking-tighter mb-2">¿Eliminar?</h2>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">Estás a punto de borrar <span className="text-red-500">"{deleteConfirm.name}"</span>.</p>
+                    <div className="space-y-3">
+                        <button onClick={executeDelete} className="w-full py-4 bg-red-500 text-white rounded-2xl font-black tracking-widest shadow-xl shadow-red-500/20 uppercase">SÍ, ELIMINAR</button>
+                        <button onClick={() => setDeleteConfirm({ isOpen: false, id: null, type: null, name: '' })} className="w-full py-4 bg-gray-100 dark:bg-white/5 text-gray-400 rounded-2xl font-black tracking-widest text-[10px] uppercase">CANCELAR</button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    {
+        isHabitModalOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4"><button onClick={() => setIsHabitModalOpen(false)}><X size={24} className="text-gray-400" /></button></div>
+                    <h2 className="text-lg font-black uppercase tracking-tighter italic mb-6">{editingHabitId ? 'Editar Hábito' : 'Añadir Hábito'}</h2>
+                    <div className="space-y-6">
+                        <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Nombre del Hábito</label>
+                            <input type="text" placeholder="Ej: Meditar 10 min" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/10 p-4 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={newHabit.name} onChange={e => setNewHabit({ ...newHabit, name: e.target.value })} />
+                        </div>
+                        <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Frecuencia Semanal</label>
+                            <div className="flex flex-wrap gap-2">{DAYS_OF_WEEK.map(d => (
+                                <button key={d} onClick={() => setNewHabit({ ...newHabit, days: newHabit.days.includes(d) ? newHabit.days.filter(x => x !== d) : [...newHabit.days, d] })} className={cn("w-10 h-10 rounded-full text-[10px] font-black border-2 transition-all", newHabit.days.includes(d) ? "bg-indigo-500 border-indigo-500 text-white" : "border-gray-100 dark:border-white/10 text-gray-400")}>{d}</button>
+                            ))}</div>
+                        </div>
+                        <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Estilo Metálico</label>
+                            <div className="flex flex-wrap gap-2">{PALETTE.map(p => (
+                                <button key={p.grad} onClick={() => setNewHabit({ ...newHabit, grad: p.grad, hex: p.hex })} style={{ background: p.grad }} className={cn("w-10 h-10 rounded-xl border-4 transition-all scale-90", newHabit.grad === p.grad ? "border-indigo-500 scale-110" : "border-transparent")}></button>
+                            ))}</div>
+                        </div>
+                        <button onClick={saveHabit} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black shadow-xl shadow-indigo-500/30 uppercase">CONFIRMAR</button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    {
+        isNewCatModalOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#1a1a26] w-full max-w-xs rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4"><button onClick={() => { setIsNewCatModalOpen(false); setEditingCatIndex(null); }}><X size={24} className="text-gray-400" /></button></div>
+                    <h2 className="text-lg font-black uppercase tracking-tighter italic mb-6">{editingCatIndex !== null ? 'Editar Sección' : 'Nueva Sección'}</h2>
+                    <div className="space-y-6">
+                        <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Título de Sección</label>
+                            <input type="text" placeholder="Ej: Ficción" autoFocus className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/10 p-4 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={newCatName} onChange={e => setNewCatName(e.target.value)} onKeyDown={e => e.key === "Enter" && saveReadingCategory()} />
+                        </div>
+                        <button onClick={saveReadingCategory} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black shadow-xl shadow-indigo-500/30 uppercase">GUARDAR</button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    {
+        isEditFileNameModalOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#1a1a26] w-full max-w-xs rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4"><button onClick={() => setIsEditFileNameModalOpen(false)}><X size={24} className="text-gray-400" /></button></div>
+                    <h2 className="text-lg font-black uppercase tracking-tighter italic mb-6">Editar Nombre</h2>
+                    <div className="space-y-6">
+                        <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Nombre del PDF</label>
+                            <input type="text" autoFocus className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/10 p-4 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={newFileName} onChange={e => setNewFileName(e.target.value)} onKeyDown={e => e.key === "Enter" && saveFileName()} />
+                        </div>
+                        <button onClick={saveFileName} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black shadow-xl shadow-indigo-500/30 uppercase">ACTUALIZAR</button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+    {
+        isCalendarOpen && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-6"><button onClick={() => setIsCalendarOpen(false)}><X size={24} className="text-gray-400" /></button></div>
+                    <h2 className="text-xl font-black uppercase tracking-tighter italic mb-8 flex items-center gap-3">
+                        <Calendar className="text-indigo-500" /> Historial
+                    </h2>
+
+                    <div className="bg-indigo-500/5 rounded-3xl p-6 mb-8 flex items-center justify-between border border-indigo-500/10">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 opacity-60">Racha Actual</span>
+                            <span className="text-3xl font-black italic">{getStreak()} DÍAS</span>
+                        </div>
+                        <Flame className="text-orange-500 w-10 h-10 drop-shadow-[0_0_15px_rgba(249,115,22,0.4)]" />
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-2 text-center mb-4">
+                        {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map(d => (
+                            <span key={d} className="text-[10px] font-black opacity-30">{d}</span>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-2">
+                        {(() => {
+                            const year = currentCalDate.getFullYear()
+                            const month = currentCalDate.getMonth()
+                            const firstDay = new Date(year, month, 1).getDay()
+                            const daysInMonth = new Date(year, month + 1, 0).getDate()
+                            const days = []
+                            for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} />)
+                            for (let d = 1; d <= daysInMonth; d++) {
+                                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                                const isPerfect = perfectDays.has(dateStr)
+                                days.push(
+                                    <div key={d} className="aspect-square flex items-center justify-center relative">
+                                        <span className={cn("text-xs font-bold", isPerfect ? "text-white z-10" : "opacity-60")}>{d}</span>
+                                        {isPerfect && <div className="absolute inset-1 bg-indigo-500 rounded-full animate-in zoom-in duration-300"></div>}
+                                    </div>
+                                )
+                            }
+                            return days
+                        })()}
+                    </div>
+
+                    <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+                        <span>{currentCalDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+                        <div className="flex gap-4">
+                            <button onClick={() => setCurrentCalDate(new Date(currentCalDate.setMonth(currentCalDate.getMonth() - 1)))} className="hover:text-indigo-500 transition-colors cursor-pointer">Ant</button>
+                            <button onClick={() => setCurrentCalDate(new Date(currentCalDate.setMonth(currentCalDate.getMonth() + 1)))} className="hover:text-indigo-500 transition-colors cursor-pointer">Sig</button>
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
+        )
+    }
+    {
+        isAgendaModalOpen && (
+            <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-10 shadow-2xl relative overflow-hidden border border-white/5">
+                    <div className="absolute top-0 right-0 p-6"><button onClick={() => setIsAgendaModalOpen(false)}><X size={24} className="text-gray-400 hover:text-white transition-colors" /></button></div>
+                    <h2 className="text-xl font-black uppercase tracking-tighter italic mb-2 tracking-widest text-indigo-500">Recordatorio</h2>
+                    <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mb-8">{new Date(selectedAgendaDay).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
-            {isHabitModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4"><button onClick={() => setIsHabitModalOpen(false)}><X size={24} className="text-gray-400" /></button></div>
-                        <h2 className="text-lg font-black uppercase tracking-tighter italic mb-6">{editingHabitId ? 'Editar Hábito' : 'Añadir Hábito'}</h2>
-                        <div className="space-y-6">
-                            <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Nombre del Hábito</label>
-                                <input type="text" placeholder="Ej: Meditar 10 min" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/10 p-4 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={newHabit.name} onChange={e => setNewHabit({ ...newHabit, name: e.target.value })} />
-                            </div>
-                            <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Frecuencia Semanal</label>
-                                <div className="flex flex-wrap gap-2">{DAYS_OF_WEEK.map(d => (
-                                    <button key={d} onClick={() => setNewHabit({ ...newHabit, days: newHabit.days.includes(d) ? newHabit.days.filter(x => x !== d) : [...newHabit.days, d] })} className={cn("w-10 h-10 rounded-full text-[10px] font-black border-2 transition-all", newHabit.days.includes(d) ? "bg-indigo-500 border-indigo-500 text-white" : "border-gray-100 dark:border-white/10 text-gray-400")}>{d}</button>
-                                ))}</div>
-                            </div>
-                            <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Estilo Metálico</label>
-                                <div className="flex flex-wrap gap-2">{PALETTE.map(p => (
-                                    <button key={p.grad} onClick={() => setNewHabit({ ...newHabit, grad: p.grad, hex: p.hex })} style={{ background: p.grad }} className={cn("w-10 h-10 rounded-xl border-4 transition-all scale-90", newHabit.grad === p.grad ? "border-indigo-500 scale-110" : "border-transparent")}></button>
-                                ))}</div>
-                            </div>
-                            <button onClick={saveHabit} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black shadow-xl shadow-indigo-500/30 uppercase">CONFIRMAR</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isNewCatModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-xs rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4"><button onClick={() => { setIsNewCatModalOpen(false); setEditingCatIndex(null); }}><X size={24} className="text-gray-400" /></button></div>
-                        <h2 className="text-lg font-black uppercase tracking-tighter italic mb-6">{editingCatIndex !== null ? 'Editar Sección' : 'Nueva Sección'}</h2>
-                        <div className="space-y-6">
-                            <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Título de Sección</label>
-                                <input type="text" placeholder="Ej: Ficción" autoFocus className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/10 p-4 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={newCatName} onChange={e => setNewCatName(e.target.value)} onKeyDown={e => e.key === "Enter" && saveReadingCategory()} />
-                            </div>
-                            <button onClick={saveReadingCategory} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black shadow-xl shadow-indigo-500/30 uppercase">GUARDAR</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isEditFileNameModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-xs rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4"><button onClick={() => setIsEditFileNameModalOpen(false)}><X size={24} className="text-gray-400" /></button></div>
-                        <h2 className="text-lg font-black uppercase tracking-tighter italic mb-6">Editar Nombre</h2>
-                        <div className="space-y-6">
-                            <div><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Nombre del PDF</label>
-                                <input type="text" autoFocus className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/10 p-4 rounded-2xl outline-none focus:border-indigo-500 font-bold" value={newFileName} onChange={e => setNewFileName(e.target.value)} onKeyDown={e => e.key === "Enter" && saveFileName()} />
-                            </div>
-                            <button onClick={saveFileName} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black shadow-xl shadow-indigo-500/30 uppercase">ACTUALIZAR</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {isCalendarOpen && (
-                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-6"><button onClick={() => setIsCalendarOpen(false)}><X size={24} className="text-gray-400" /></button></div>
-                        <h2 className="text-xl font-black uppercase tracking-tighter italic mb-8 flex items-center gap-3">
-                            <Calendar className="text-indigo-500" /> Historial
-                        </h2>
-
-                        <div className="bg-indigo-500/5 rounded-3xl p-6 mb-8 flex items-center justify-between border border-indigo-500/10">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 opacity-60">Racha Actual</span>
-                                <span className="text-3xl font-black italic">{getStreak()} DÍAS</span>
-                            </div>
-                            <Flame className="text-orange-500 w-10 h-10 drop-shadow-[0_0_15px_rgba(249,115,22,0.4)]" />
+                    <div className="space-y-8">
+                        <div>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 block">Contenido</label>
+                            <textarea autoFocus placeholder="¿Qué tienes planeado?" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-6 rounded-3xl outline-none focus:border-indigo-500 font-bold min-h-[120px] shadow-inner resize-none text-sm leading-relaxed"
+                                value={currentReminder.text} onChange={e => setCurrentReminder({ ...currentReminder, text: e.target.value })} />
                         </div>
 
-                        <div className="grid grid-cols-7 gap-2 text-center mb-4">
-                            {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map(d => (
-                                <span key={d} className="text-[10px] font-black opacity-30">{d}</span>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-7 gap-2">
-                            {(() => {
-                                const year = currentCalDate.getFullYear()
-                                const month = currentCalDate.getMonth()
-                                const firstDay = new Date(year, month, 1).getDay()
-                                const daysInMonth = new Date(year, month + 1, 0).getDate()
-                                const days = []
-                                for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} />)
-                                for (let d = 1; d <= daysInMonth; d++) {
-                                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-                                    const isPerfect = perfectDays.has(dateStr)
-                                    days.push(
-                                        <div key={d} className="aspect-square flex items-center justify-center relative">
-                                            <span className={cn("text-xs font-bold", isPerfect ? "text-white z-10" : "opacity-60")}>{d}</span>
-                                            {isPerfect && <div className="absolute inset-1 bg-indigo-500 rounded-full animate-in zoom-in duration-300"></div>}
-                                        </div>
-                                    )
-                                }
-                                return days
-                            })()}
-                        </div>
-
-                        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            <span>{currentCalDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
-                            <div className="flex gap-4">
-                                <button onClick={() => setCurrentCalDate(new Date(currentCalDate.setMonth(currentCalDate.getMonth() - 1)))} className="hover:text-indigo-500 transition-colors cursor-pointer">Ant</button>
-                                <button onClick={() => setCurrentCalDate(new Date(currentCalDate.setMonth(currentCalDate.getMonth() + 1)))} className="hover:text-indigo-500 transition-colors cursor-pointer">Sig</button>
+                        <div>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 block">Estilo Visual</label>
+                            <div className="flex flex-wrap gap-3">
+                                {PALETTE.map((p, idx) => (
+                                    <button key={idx} onClick={() => setCurrentReminder({ ...currentReminder, hex: p.hex, grad: p.grad })} style={{ background: p.grad }} className={cn("w-10 h-10 rounded-2xl border-4 transition-all scale-95", currentReminder.grad === p.grad ? "border-indigo-500 scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100 hover:scale-105")}></button>
+                                ))}
                             </div>
                         </div>
-                    </div>
-                </div>
-            )}
-            {isAgendaModalOpen && (
-                <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-10 shadow-2xl relative overflow-hidden border border-white/5">
-                        <div className="absolute top-0 right-0 p-6"><button onClick={() => setIsAgendaModalOpen(false)}><X size={24} className="text-gray-400 hover:text-white transition-colors" /></button></div>
-                        <h2 className="text-xl font-black uppercase tracking-tighter italic mb-2 tracking-widest text-indigo-500">Recordatorio</h2>
-                        <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mb-8">{new Date(selectedAgendaDay).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
-                        <div className="space-y-8">
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 block">Contenido</label>
-                                <textarea autoFocus placeholder="¿Qué tienes planeado?" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-6 rounded-3xl outline-none focus:border-indigo-500 font-bold min-h-[120px] shadow-inner resize-none text-sm leading-relaxed"
-                                    value={currentReminder.text} onChange={e => setCurrentReminder({ ...currentReminder, text: e.target.value })} />
-                            </div>
-
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 block">Estilo Visual</label>
-                                <div className="flex flex-wrap gap-3">
-                                    {PALETTE.map((p, idx) => (
-                                        <button key={idx} onClick={() => setCurrentReminder({ ...currentReminder, hex: p.hex, grad: p.grad })} style={{ background: p.grad }} className={cn("w-10 h-10 rounded-2xl border-4 transition-all scale-95", currentReminder.grad === p.grad ? "border-indigo-500 scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-100 hover:scale-105")}></button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 pt-4">
-                                <button onClick={saveAgendaReminder} className="w-full py-5 bg-indigo-500 text-white rounded-[1.5rem] font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all">GUARDAR</button>
-                                {agendaEvents[selectedAgendaDay] && (
-                                    <button onClick={() => openDeleteConfirm(selectedAgendaDay, 'agenda_reminder', agendaEvents[selectedAgendaDay].text)} className="w-full py-4 text-red-500/50 hover:text-red-500 font-black text-[10px] tracking-[0.2em] uppercase transition-all">ELIMINAR RECORDATORIO</button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-            {isAuthModalOpen && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-10 shadow-2xl relative overflow-hidden border border-white/5">
-                        <div className="absolute top-0 right-0 p-6"><button onClick={() => setIsAuthModalOpen(false)}><X size={24} className="text-gray-400 hover:text-white transition-colors" /></button></div>
-                        <h2 className="text-2xl font-black uppercase tracking-tighter italic mb-2 tracking-widest text-indigo-500">
-                            {authMode === 'login' ? 'Bienvenido' : 'Crear Cuenta'}
-                        </h2>
-                        <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mb-8">
-                            {authMode === 'login' ? 'Inicia sesión para sincronizar' : 'Regístrate en MindTrack'}
-                        </p>
-
-                        <form onSubmit={handleAuth} className="space-y-6">
-                            {authMode === 'signup' && (
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Nombre Completo</label>
-                                    <input type="text" required placeholder="Tu nombre" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm"
-                                        value={authData.fullName} onChange={e => setAuthData({ ...authData, fullName: e.target.value })} />
-                                </div>
+                        <div className="space-y-3 pt-4">
+                            <button onClick={saveAgendaReminder} className="w-full py-5 bg-indigo-500 text-white rounded-[1.5rem] font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all">GUARDAR</button>
+                            {agendaEvents[selectedAgendaDay] && (
+                                <button onClick={() => openDeleteConfirm(selectedAgendaDay, 'agenda_reminder', agendaEvents[selectedAgendaDay].text)} className="w-full py-4 text-red-500/50 hover:text-red-500 font-black text-[10px] tracking-[0.2em] uppercase transition-all">ELIMINAR RECORDATORIO</button>
                             )}
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Correo Electrónico</label>
-                                <input type="email" required placeholder="tu@email.com" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm"
-                                    value={authData.email} onChange={e => setAuthData({ ...authData, email: e.target.value })} />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Contraseña</label>
-                                <input type="password" required placeholder="••••••••" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm"
-                                    value={authData.password} onChange={e => setAuthData({ ...authData, password: e.target.value })} />
-                            </div>
-
-                            <button type="submit" className="w-full py-5 bg-indigo-500 text-white rounded-[1.5rem] font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all">
-                                {authMode === 'login' ? 'ENTRAR' : 'REGISTRARME'}
-                            </button>
-                        </form>
-
-                        <div className="mt-8 text-center">
-                            <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-[10px] font-black uppercase tracking-widest text-indigo-500/60 hover:text-indigo-500">
-                                {authMode === 'login' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
-                            </button>
                         </div>
                     </div>
                 </div>
-            )}
-            {isAccountModalOpen && user && (
-                <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-12 shadow-2xl relative overflow-hidden border border-white/5 text-center">
-                        <div className="absolute top-0 right-0 p-8">
-                            <button onClick={() => setIsAccountModalOpen(false)}>
-                                <X size={24} className="text-gray-400 hover:text-white transition-colors" />
-                            </button>
+            </div>
+        )
+    }
+    {
+        isAuthModalOpen && (
+            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-10 shadow-2xl relative overflow-hidden border border-white/5">
+                    <div className="absolute top-0 right-0 p-6"><button onClick={() => setIsAuthModalOpen(false)}><X size={24} className="text-gray-400 hover:text-white transition-colors" /></button></div>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter italic mb-2 tracking-widest text-indigo-500">
+                        {authMode === 'login' ? 'Bienvenido' : 'Crear Cuenta'}
+                    </h2>
+                    <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em] mb-8">
+                        {authMode === 'login' ? 'Inicia sesión para sincronizar' : 'Regístrate en MindTrack'}
+                    </p>
+
+                    <form onSubmit={handleAuth} className="space-y-6">
+                        {authMode === 'signup' && (
+                            <div>
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Nombre Completo</label>
+                                <input type="text" required placeholder="Tu nombre" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm"
+                                    value={authData.fullName} onChange={e => setAuthData({ ...authData, fullName: e.target.value })} />
+                            </div>
+                        )}
+                        <div>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Correo Electrónico</label>
+                            <input type="email" required placeholder="tu@email.com" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm"
+                                value={authData.email} onChange={e => setAuthData({ ...authData, email: e.target.value })} />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 block">Contraseña</label>
+                            <input type="password" required placeholder="••••••••" className="w-full bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-5 rounded-2xl outline-none focus:border-indigo-500 font-bold text-sm"
+                                value={authData.password} onChange={e => setAuthData({ ...authData, password: e.target.value })} />
                         </div>
 
-                        <div className="w-24 h-24 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-indigo-500/20">
-                            <UserCircle size={48} className="text-indigo-500" />
-                        </div>
+                        <button type="submit" className="w-full py-5 bg-indigo-500 text-white rounded-[1.5rem] font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all">
+                            {authMode === 'login' ? 'ENTRAR' : 'REGISTRARME'}
+                        </button>
+                    </form>
 
-                        <h2 className="text-2xl font-black uppercase tracking-tighter italic text-indigo-500 mb-1">
-                            {user.user_metadata?.full_name || 'Usuario'}
-                        </h2>
-                        <p className="text-xs font-bold text-gray-500 lowercase tracking-widest mb-12">
-                            {user.email}
-                        </p>
-
-                        <div className="space-y-4">
-                            <button
-                                onClick={async () => {
-                                    await supabase.auth.signOut()
-                                    setIsAccountModalOpen(false)
-                                    setHabits([])
-                                    setNotes([])
-                                    setActivities([])
-                                    setAgendaEvents({})
-                                    setPerfectDays(new Set())
-                                    setReadingFiles([])
-                                }}
-                                className="w-full py-5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black tracking-[0.2em] uppercase text-xs hover:bg-red-500 hover:text-white transition-all active:scale-95"
-                            >
-                                Cerrar Sesión
-                            </button>
-                            <button
-                                onClick={() => setIsAccountModalOpen(false)}
-                                className="w-full py-4 text-gray-400 font-black text-[10px] tracking-[0.2em] uppercase"
-                            >
-                                Volver
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showSuccessModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-12 shadow-2xl relative overflow-hidden border border-white/5 text-center">
-                        <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <CheckCircle size={40} className="text-green-500 animate-bounce" />
-                        </div>
-                        <h2 className="text-2xl font-black uppercase tracking-tighter italic text-indigo-500 mb-2">¡REGISTRADO!</h2>
-                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-10">Tu cuenta ha sido creada exitosamente. ¡Bienvenido a la comunidad!</p>
-
-                        <button
-                            onClick={() => {
-                                setShowSuccessModal(false);
-                                setAuthMode('login');
-                            }}
-                            className="w-full py-5 bg-indigo-500 text-white rounded-2xl font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all"
-                        >
-                            ENTRAR AHORA
+                    <div className="mt-8 text-center">
+                        <button onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-[10px] font-black uppercase tracking-widest text-indigo-500/60 hover:text-indigo-500">
+                            {authMode === 'login' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
                         </button>
                     </div>
                 </div>
-            )}
-        </div>
+            </div>
+        )
+    }
+    {
+        isAccountModalOpen && user && (
+            <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-12 shadow-2xl relative overflow-hidden border border-white/5 text-center">
+                    <div className="absolute top-0 right-0 p-8">
+                        <button onClick={() => setIsAccountModalOpen(false)}>
+                            <X size={24} className="text-gray-400 hover:text-white transition-colors" />
+                        </button>
+                    </div>
+
+                    <div className="w-24 h-24 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-indigo-500/20">
+                        <UserCircle size={48} className="text-indigo-500" />
+                    </div>
+
+                    <h2 className="text-2xl font-black uppercase tracking-tighter italic text-indigo-500 mb-1">
+                        {user.user_metadata?.full_name || 'Usuario'}
+                    </h2>
+                    <p className="text-xs font-bold text-gray-500 lowercase tracking-widest mb-12">
+                        {user.email}
+                    </p>
+
+                    <div className="space-y-4">
+                        <button
+                            onClick={async () => {
+                                await supabase.auth.signOut()
+                                setIsAccountModalOpen(false)
+                                setHabits([])
+                                setNotes([])
+                                setActivities([])
+                                setAgendaEvents({})
+                                setPerfectDays(new Set())
+                                setReadingFiles([])
+                            }}
+                            className="w-full py-5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-2xl font-black tracking-[0.2em] uppercase text-xs hover:bg-red-500 hover:text-white transition-all active:scale-95"
+                        >
+                            Cerrar Sesión
+                        </button>
+                        <button
+                            onClick={() => setIsAccountModalOpen(false)}
+                            className="w-full py-4 text-gray-400 font-black text-[10px] tracking-[0.2em] uppercase"
+                        >
+                            Volver
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    {
+        showSuccessModal && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+                <div className="bg-white dark:bg-[#1a1a26] w-full max-w-sm rounded-[3rem] p-12 shadow-2xl relative overflow-hidden border border-white/5 text-center">
+                    <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <CheckCircle size={40} className="text-green-500 animate-bounce" />
+                    </div>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter italic text-indigo-500 mb-2">¡REGISTRADO!</h2>
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-10">Tu cuenta ha sido creada exitosamente. ¡Bienvenido a la comunidad!</p>
+
+                    <button
+                        onClick={() => {
+                            setShowSuccessModal(false);
+                            setAuthMode('login');
+                        }}
+                        className="w-full py-5 bg-indigo-500 text-white rounded-2xl font-black tracking-[0.2em] shadow-xl shadow-indigo-500/30 uppercase text-xs active:scale-95 transition-all"
+                    >
+                        ENTRAR AHORA
+                    </button>
+                </div>
+            </div>
+        )
+    }
+        </div >
     )
 }
