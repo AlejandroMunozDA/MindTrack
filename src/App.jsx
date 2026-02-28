@@ -70,7 +70,12 @@ export default function App() {
     const [currentReminder, setCurrentReminder] = useState({ text: '', hex: PALETTE[0].hex, grad: PALETTE[0].grad })
     const [agendaCalDate, setAgendaCalDate] = useState(new Date())
     const [habitHistory, setHabitHistory] = useState(() => JSON.parse(localStorage.getItem('mindtrack_habit_history') || '[]'))
-    const [lastActiveDate, setLastActiveDate] = useState(() => localStorage.getItem('mindtrack_last_active_date') || new Date().toISOString().split('T')[0])
+    const [lastActiveDate, setLastActiveDate] = useState(() => {
+        const saved = localStorage.getItem('mindtrack_last_active_date')
+        if (saved) return saved
+        const now = new Date()
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    })
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
     // Search queries
@@ -141,56 +146,83 @@ export default function App() {
         return () => subscription.unsubscribe()
     }, [])
 
-    // Efecto para verificar cambio de día y resetear hábitos
+    // Efecto para verificar cambio de día y resetear hábitos a medianoche (hora local)
     useEffect(() => {
-        const checkDayChange = () => {
-            const today = new Date().toISOString().split('T')[0]
-            if (today !== lastActiveDate) {
-                // El día ha cambiado. Guardamos el registro del día anterior.
-                const percentage = habits.length > 0 ? Math.round((habits.filter(h => h.completed).length / habits.length) * 100) : 0
-                const streak = perfectDays.size // O una lógica de racha más compleja si se prefiere
-
-                const [y, m, d] = lastActiveDate.split('-')
-                const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-                const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
-
-                const newRecord = {
-                    date: recordDate,
-                    streak: streak,
-                    percentage: percentage,
-                    timestamp: lastActiveDate
-                }
-
-                setHabitHistory(prev => [newRecord, ...prev])
-
-                // Desmarcamos todos los hábitos
-                const resetHabits = habits.map(h => ({ ...h, completed: false }))
-                setHabits(resetHabits)
-
-                // Sincronizamos con Supabase si hay usuario
-                if (user) {
-                    supabase.from('habit_history').insert([{
-                        user_id: user.id,
-                        date_str: recordDate,
-                        streak: streak,
-                        percentage: percentage,
-                        raw_date: lastActiveDate
-                    }]).then(() => {
-                        // También actualizamos los hábitos en el servidor para que estén desmarcados
-                        resetHabits.forEach(h => {
-                            supabase.from('habits').update({ completed: false }).eq('id', h.id).then()
-                        })
-                    })
-                }
-
-                setLastActiveDate(today)
-            }
+        const getLocalDateStr = () => {
+            const now = new Date()
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
         }
 
-        checkDayChange()
-        // Opcional: checar cada cierto tiempo si la app se queda abierta
-        const interval = setInterval(checkDayChange, 60000)
-        return () => clearInterval(interval)
+        const getMsUntilMidnight = () => {
+            const now = new Date()
+            const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0)
+            return midnight.getTime() - now.getTime()
+        }
+
+        const performDayReset = () => {
+            const today = getLocalDateStr()
+            if (today === lastActiveDate) return // Mismo día, no hacer nada
+
+            // Guardamos el registro del día anterior
+            const percentage = habits.length > 0 ? Math.round((habits.filter(h => h.completed).length / habits.length) * 100) : 0
+            const streak = perfectDays.size
+
+            const [y, m, d] = lastActiveDate.split('-')
+            const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+            const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
+
+            const newRecord = {
+                date: recordDate,
+                streak: streak,
+                percentage: percentage,
+                timestamp: lastActiveDate
+            }
+
+            setHabitHistory(prev => [newRecord, ...prev])
+
+            // Desmarcamos todos los hábitos completados
+            const resetHabits = habits.map(h => ({ ...h, completed: false }))
+            setHabits(resetHabits)
+
+            // Sincronizamos con Supabase si hay usuario
+            if (user) {
+                supabase.from('habit_history').insert([{
+                    user_id: user.id,
+                    date_str: recordDate,
+                    streak: streak,
+                    percentage: percentage,
+                    raw_date: lastActiveDate
+                }]).then(() => {
+                    resetHabits.forEach(h => {
+                        supabase.from('habits').update({ completed: false }).eq('id', h.id).then()
+                    })
+                })
+            }
+
+            setLastActiveDate(today)
+        }
+
+        // Verificación inmediata al abrir la app (por si el usuario no la abrió en días)
+        performDayReset()
+
+        // Programar el siguiente reset exactamente a medianoche local
+        const msUntilMidnight = getMsUntilMidnight()
+        const midnightTimeout = setTimeout(() => {
+            performDayReset()
+        }, msUntilMidnight + 500) // +500ms de margen para asegurar que ya cambió el día
+
+        // Intervalo de respaldo cada 30 segundos por si el timeout falla (ej. suspensión del dispositivo)
+        const backupInterval = setInterval(() => {
+            const today = getLocalDateStr()
+            if (today !== lastActiveDate) {
+                performDayReset()
+            }
+        }, 30000)
+
+        return () => {
+            clearTimeout(midnightTimeout)
+            clearInterval(backupInterval)
+        }
     }, [lastActiveDate, habits, perfectDays, user])
 
     useEffect(() => {
