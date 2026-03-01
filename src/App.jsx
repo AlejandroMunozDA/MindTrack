@@ -76,6 +76,8 @@ export default function App() {
         const now = new Date()
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     })
+    // Fecha capturada al primer render - NUNCA cambia, inmune a efectos
+    const initialDateRef = useRef(localStorage.getItem('mindtrack_last_active_date') || lastActiveDate)
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
     // Search queries
@@ -146,76 +148,78 @@ export default function App() {
         return () => subscription.unsubscribe()
     }, [])
 
-    // Efecto para verificar cambio de día y resetear hábitos a medianoche (hora local)
-    useEffect(() => {
-        const getLocalDateStr = () => {
-            const now = new Date()
-            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    // Refs para que el timer de medianoche acceda al estado actual sin re-montarse
+    const habitsRef = useRef(habits)
+    const perfectDaysRef = useRef(perfectDays)
+    const userRef = useRef(user)
+    const lastActiveDateRef = useRef(lastActiveDate)
+    useEffect(() => { habitsRef.current = habits }, [habits])
+    useEffect(() => { perfectDaysRef.current = perfectDays }, [perfectDays])
+    useEffect(() => { userRef.current = user }, [user])
+    useEffect(() => { lastActiveDateRef.current = lastActiveDate }, [lastActiveDate])
+
+    const getLocalDateStr = () => {
+        const now = new Date()
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    }
+
+    // Función central de reset que puede ser llamada desde cualquier punto
+    const performDayReset = (sourceHabits, sourcePerfectDays, sourceUser, storedDate) => {
+        const today = getLocalDateStr()
+        if (today === storedDate) return false
+
+        const percentage = sourceHabits.length > 0 ? Math.round((sourceHabits.filter(h => h.completed).length / sourceHabits.length) * 100) : 0
+        const streak = sourcePerfectDays instanceof Set ? sourcePerfectDays.size : (Array.isArray(sourcePerfectDays) ? sourcePerfectDays.length : 0)
+
+        const [y, m, d] = storedDate.split('-')
+        const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+        const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
+
+        setHabitHistory(prev => {
+            if (prev.length > 0 && prev[0].timestamp === storedDate) return prev
+            return [{ date: recordDate, streak, percentage, timestamp: storedDate }, ...prev]
+        })
+
+        const resetHabits = sourceHabits.map(h => ({ ...h, completed: false }))
+        setHabits(resetHabits)
+        habitsRef.current = resetHabits
+
+        if (sourceUser) {
+            supabase.from('habit_history').insert([{
+                user_id: sourceUser.id, date_str: recordDate, streak, percentage, raw_date: storedDate
+            }]).then()
+            resetHabits.forEach(h => {
+                supabase.from('habits').update({ completed: false }).eq('id', h.id).then()
+            })
         }
 
+        setLastActiveDate(today)
+        lastActiveDateRef.current = today
+        return true
+    }
+
+    // Timer de medianoche - solo se monta una vez, usa refs para datos frescos
+    useEffect(() => {
         const getMsUntilMidnight = () => {
             const now = new Date()
             const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0)
             return midnight.getTime() - now.getTime()
         }
 
-        const performDayReset = () => {
-            const today = getLocalDateStr()
-            if (today === lastActiveDate) return // Mismo día, no hacer nada
-
-            // Guardamos el registro del día anterior
-            const percentage = habits.length > 0 ? Math.round((habits.filter(h => h.completed).length / habits.length) * 100) : 0
-            const streak = perfectDays.size
-
-            const [y, m, d] = lastActiveDate.split('-')
-            const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-            const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
-
-            const newRecord = {
-                date: recordDate,
-                streak: streak,
-                percentage: percentage,
-                timestamp: lastActiveDate
-            }
-
-            setHabitHistory(prev => [newRecord, ...prev])
-
-            // Desmarcamos todos los hábitos completados
-            const resetHabits = habits.map(h => ({ ...h, completed: false }))
-            setHabits(resetHabits)
-
-            // Sincronizamos con Supabase si hay usuario
-            if (user) {
-                supabase.from('habit_history').insert([{
-                    user_id: user.id,
-                    date_str: recordDate,
-                    streak: streak,
-                    percentage: percentage,
-                    raw_date: lastActiveDate
-                }]).then(() => {
-                    resetHabits.forEach(h => {
-                        supabase.from('habits').update({ completed: false }).eq('id', h.id).then()
-                    })
-                })
-            }
-
-            setLastActiveDate(today)
+        const scheduleMidnight = () => {
+            const msUntilMidnight = getMsUntilMidnight()
+            return setTimeout(() => {
+                performDayReset(habitsRef.current, perfectDaysRef.current, userRef.current, lastActiveDateRef.current)
+                midnightTimeout = scheduleMidnight()
+            }, msUntilMidnight + 1000)
         }
+        let midnightTimeout = scheduleMidnight()
 
-        // Verificación inmediata al abrir la app (por si el usuario no la abrió en días)
-        performDayReset()
-
-        // Programar el siguiente reset exactamente a medianoche local
-        const msUntilMidnight = getMsUntilMidnight()
-        const midnightTimeout = setTimeout(() => {
-            performDayReset()
-        }, msUntilMidnight + 500) // +500ms de margen para asegurar que ya cambió el día
-
-        // Intervalo de respaldo cada 30 segundos por si el timeout falla (ej. suspensión del dispositivo)
+        // Respaldo cada 30s
         const backupInterval = setInterval(() => {
             const today = getLocalDateStr()
-            if (today !== lastActiveDate) {
-                performDayReset()
+            if (today !== lastActiveDateRef.current) {
+                performDayReset(habitsRef.current, perfectDaysRef.current, userRef.current, lastActiveDateRef.current)
             }
         }, 30000)
 
@@ -223,7 +227,7 @@ export default function App() {
             clearTimeout(midnightTimeout)
             clearInterval(backupInterval)
         }
-    }, [lastActiveDate, habits, perfectDays, user])
+    }, [])
 
     useEffect(() => {
         if (user) {
@@ -254,7 +258,26 @@ export default function App() {
             supabase.from('habit_history').select('*').order('raw_date', { ascending: false })
         ])
 
-        if (dbHabits) setHabits(dbHabits)
+        if (dbHabits) {
+            const today = getLocalDateStr()
+            const hasCompletedHabits = dbHabits.some(h => h.completed)
+            
+            // ¿Ya se hizo un registro de historial HOY en Supabase?
+            const alreadyResetToday = dbHistory && dbHistory.length > 0 && dbHistory[0].raw_date === today
+
+            if (hasCompletedHabits && !alreadyResetToday) {
+                // Fecha de ayer (calculada con JS puro, sin depender de localStorage)
+                const ayer = new Date()
+                ayer.setDate(ayer.getDate() - 1)
+                const ayerStr = `${ayer.getFullYear()}-${String(ayer.getMonth() + 1).padStart(2, '0')}-${String(ayer.getDate()).padStart(2, '0')}`
+                performDayReset(dbHabits, dbPerfectDays || [], user, ayerStr)
+            } else {
+                setHabits(dbHabits)
+                habitsRef.current = dbHabits
+            }
+            setLastActiveDate(today)
+            lastActiveDateRef.current = today
+        }
         if (dbPerfectDays) setPerfectDays(new Set(dbPerfectDays.map(d => d.date)))
         if (dbNotes) setNotes(dbNotes)
         if (dbActivities) setActivities(dbActivities)
