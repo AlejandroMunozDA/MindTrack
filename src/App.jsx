@@ -79,6 +79,7 @@ export default function App() {
     // Fecha capturada al primer render - NUNCA cambia, inmune a efectos
     const initialDateRef = useRef(localStorage.getItem('mindtrack_last_active_date') || lastActiveDate)
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+    const [expandedRecordDate, setExpandedRecordDate] = useState(null)
 
     // Search queries
     const [noteSearchQuery, setNoteSearchQuery] = useState("")
@@ -175,9 +176,11 @@ export default function App() {
         const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
         const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
 
+        const completedHabits = sourceHabits.filter(h => h.completed).map(h => h.name)
+
         setHabitHistory(prev => {
             if (prev.length > 0 && prev[0].timestamp === storedDate) return prev
-            return [{ date: recordDate, streak, percentage, timestamp: storedDate }, ...prev]
+            return [{ date: recordDate, streak, percentage, timestamp: storedDate, completedHabits }, ...prev]
         })
 
         const resetHabits = sourceHabits.map(h => ({ ...h, completed: false }))
@@ -186,7 +189,12 @@ export default function App() {
 
         if (sourceUser) {
             supabase.from('habit_history').insert([{
-                user_id: sourceUser.id, date_str: recordDate, streak, percentage, raw_date: storedDate
+                user_id: sourceUser.id,
+                date_str: recordDate,
+                streak: streak,
+                percentage: percentage,
+                raw_date: storedDate,
+                completed_habits: completedHabits
             }]).then()
             resetHabits.forEach(h => {
                 supabase.from('habits').update({ completed: false }).eq('id', h.id).then()
@@ -304,7 +312,8 @@ export default function App() {
                 date: h.date_str,
                 streak: h.streak,
                 percentage: h.percentage,
-                timestamp: h.raw_date
+                timestamp: h.raw_date,
+                completedHabits: h.completed_habits || []
             })))
         }
     }
@@ -1701,54 +1710,97 @@ export default function App() {
                         <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
                             {/* REGISTRO EN TIEMPO REAL (HOY) */}
                             {(() => {
-                                const percentage = habits.length > 0 ? Math.round((habits.filter(h => h.completed).length / habits.length) * 100) : 0
+                                const completedList = habits.filter(h => h.completed)
+                                const percentage = habits.length > 0 ? Math.round((completedList.length / habits.length) * 100) : 0
                                 const streak = perfectDays.size
                                 const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
                                 const now = new Date()
                                 const todayStr = `${now.getDate().toString().padStart(2, '0')}/${months[now.getMonth()]}/${now.getFullYear()}`
+                                const isExpanded = expandedRecordDate === 'today'
 
                                 return (
-                                    <div className="bg-indigo-500/10 border border-indigo-500/30 p-4 rounded-2xl flex items-center justify-between group shadow-lg shadow-indigo-500/5">
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">{todayStr}</span>
-                                                <span className="text-[8px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Hoy</span>
-                                            </div>
-                                            <div className="flex gap-4 mt-1">
-                                                <div className="flex items-center gap-1">
-                                                    <Flame size={14} className="text-orange-500" />
-                                                    <span className="text-xs font-black">RACHA: {streak}</span>
+                                    <div className="space-y-2">
+                                        <div onClick={() => setExpandedRecordDate(isExpanded ? null : 'today')}
+                                            className={cn("bg-indigo-500/10 border p-4 rounded-2xl flex items-center justify-between group shadow-lg shadow-indigo-500/5 cursor-pointer transition-all",
+                                                isExpanded ? "border-indigo-500 ring-4 ring-indigo-500/5" : "border-indigo-500/30")}>
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">{todayStr}</span>
+                                                    <span className="text-[8px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Hoy</span>
                                                 </div>
-                                                <div className="flex items-center gap-1">
-                                                    <BarChart2 size={14} className="text-indigo-500" />
-                                                    <span className="text-xs font-black">{percentage}%</span>
+                                                <div className="flex gap-4 mt-1">
+                                                    <div className="flex items-center gap-1">
+                                                        <Flame size={14} className="text-orange-500" />
+                                                        <span className="text-xs font-black">RACHA: {streak}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <BarChart2 size={14} className="text-indigo-500" />
+                                                        <span className="text-xs font-black">{percentage}%</span>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <div className={cn("w-1.5 h-10 bg-indigo-500 rounded-full transition-all", isExpanded ? "scale-y-125 shadow-lg shadow-indigo-500/50" : "animate-pulse")}></div>
                                         </div>
-                                        <div className="w-1.5 h-10 bg-indigo-500 rounded-full animate-pulse"></div>
+
+                                        {isExpanded && (
+                                            <div className="px-4 py-3 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 animate-in slide-in-from-top-2 duration-200">
+                                                <div className="text-[8px] font-black text-indigo-500/40 uppercase tracking-widest mb-3">Hábitos Completados</div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {completedList.length > 0 ? completedList.map((h, idx) => (
+                                                        <span key={idx} className="px-3 py-1.5 bg-indigo-500 text-white text-[9px] font-black rounded-lg uppercase tracking-tighter shadow-sm">
+                                                            {h.name}
+                                                        </span>
+                                                    )) : (
+                                                        <span className="text-[10px] font-bold text-gray-400 italic">Ningún hábito completado aún</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )
                             })()}
 
                             {/* HISTORIAL GUARDADO */}
-                            {habitHistory.length > 0 ? habitHistory.map((record, i) => (
-                                <div key={i} className="bg-gray-50 dark:bg-white/5 border border-indigo-500/5 p-4 rounded-2xl flex items-center justify-between group hover:border-indigo-500/20 transition-all opacity-70">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 opacity-60">{record.date}</span>
-                                        <div className="flex gap-4 mt-1">
-                                            <div className="flex items-center gap-1">
-                                                <Flame size={14} className="text-orange-500 opacity-50" />
-                                                <span className="text-xs font-black">RACHA: {record.streak}</span>
+                            {habitHistory.length > 0 ? habitHistory.map((record, i) => {
+                                const isExpanded = expandedRecordDate === record.timestamp
+                                return (
+                                    <div key={i} className="space-y-2">
+                                        <div onClick={() => setExpandedRecordDate(isExpanded ? null : record.timestamp)}
+                                            className={cn("bg-gray-50 dark:bg-white/5 border p-4 rounded-2xl flex items-center justify-between group transition-all cursor-pointer opacity-70 hover:opacity-100",
+                                                isExpanded ? "border-indigo-500/40 bg-indigo-500/5 ring-4 ring-indigo-500/5 opacity-100" : "border-indigo-500/5")}>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 opacity-60">{record.date}</span>
+                                                <div className="flex gap-4 mt-1">
+                                                    <div className="flex items-center gap-1">
+                                                        <Flame size={14} className="text-orange-500 opacity-50" />
+                                                        <span className="text-xs font-black">RACHA: {record.streak}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <BarChart2 size={14} className="text-indigo-500 opacity-50" />
+                                                        <span className="text-xs font-black">{record.percentage}%</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                <BarChart2 size={14} className="text-indigo-500 opacity-50" />
-                                                <span className="text-xs font-black">{record.percentage}%</span>
-                                            </div>
+                                            <div className={cn("w-1.5 h-10 bg-indigo-500 rounded-full transition-all", isExpanded ? "opacity-100 scale-y-110" : "opacity-10")}></div>
                                         </div>
+
+                                        {isExpanded && (
+                                            <div className="px-4 py-3 bg-gray-50/50 dark:bg-white/[0.02] rounded-2xl border border-indigo-500/5 animate-in slide-in-from-top-2 duration-200">
+                                                <div className="text-[8px] font-black text-indigo-500/40 uppercase tracking-widest mb-3">Qué hiciste ese día</div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {record.completedHabits && record.completedHabits.length > 0 ? record.completedHabits.map((hName, idx) => (
+                                                        <span key={idx} className="px-3 py-1.5 bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-300 text-[9px] font-black rounded-lg uppercase tracking-tighter border border-indigo-500/5">
+                                                            {hName}
+                                                        </span>
+                                                    )) : (
+                                                        <span className="text-[10px] font-bold text-gray-400 italic">Sin datos de hábitos</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="w-1.5 h-10 bg-indigo-500 rounded-full opacity-10 group-hover:opacity-100 transition-opacity"></div>
-                                </div>
-                            )) : (
+                                )
+                            }) : (
                                 <div className="text-center py-10 opacity-20 uppercase font-black text-xs tracking-widest">No hay registros pasados</div>
                             )}
                         </div>
