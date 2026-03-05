@@ -268,23 +268,20 @@ export default function App() {
 
         if (dbHabits) {
             const today = getLocalDateStr()
+            const savedDate = localStorage.getItem('mindtrack_last_active_date')
             const hasCompletedHabits = dbHabits.some(h => h.completed)
-            
-            // ¿Ya se hizo un registro de historial HOY en Supabase?
-            const alreadyResetToday = dbHistory && dbHistory.length > 0 && dbHistory[0].raw_date === today
 
-            if (hasCompletedHabits && !alreadyResetToday) {
-                // Fecha de ayer (calculada con JS puro, sin depender de localStorage)
-                const ayer = new Date()
-                ayer.setDate(ayer.getDate() - 1)
-                const ayerStr = `${ayer.getFullYear()}-${String(ayer.getMonth() + 1).padStart(2, '0')}-${String(ayer.getDate()).padStart(2, '0')}`
-                performDayReset(dbHabits, dbPerfectDays || [], user, ayerStr)
+            // Si el día cambió y hay hábitos completados de antes, archivamos
+            if (savedDate && savedDate !== today && hasCompletedHabits) {
+                performDayReset(dbHabits, dbPerfectDays || [], user, savedDate)
             } else {
                 setHabits(dbHabits)
                 habitsRef.current = dbHabits
             }
+
             setLastActiveDate(today)
             lastActiveDateRef.current = today
+            localStorage.setItem('mindtrack_last_active_date', today)
         }
         if (dbPerfectDays) setPerfectDays(new Set(dbPerfectDays.map(d => d.date)))
         if (dbNotes) setNotes(dbNotes)
@@ -423,11 +420,15 @@ export default function App() {
                 await supabase.from('reading_categories').delete().eq('user_id', user.id).eq('name', deleteConfirm.name)
             } else if (deleteConfirm.type === 'pdf_file') {
                 await supabase.from('reading_files').delete().eq('id', deleteConfirm.id)
+            } else if (deleteConfirm.type === 'habit_history') {
+                await supabase.from('habit_history').delete().eq('user_id', user.id).eq('raw_date', deleteConfirm.id)
             }
         }
 
         // Retrocompatibilidad local
-        if (deleteConfirm.type === 'habit') {
+        if (deleteConfirm.type === 'habit_history') {
+            setHabitHistory(habitHistory.filter(h => h.timestamp !== deleteConfirm.id))
+        } else if (deleteConfirm.type === 'habit') {
             const newHabits = habits.filter(h => h.id !== deleteConfirm.id)
             setHabits(newHabits)
             updatePerfectDays(newHabits)
@@ -1781,7 +1782,15 @@ export default function App() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className={cn("w-1.5 h-10 bg-indigo-500 rounded-full transition-all", isExpanded ? "opacity-100 scale-y-110" : "opacity-10")}></div>
+                                            <div className="flex items-center gap-3">
+                                                <button onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openDeleteConfirm(record.timestamp, 'habit_history', record.date);
+                                                }} className="p-2 text-red-500/20 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                                <div className={cn("w-1.5 h-10 bg-indigo-500 rounded-full transition-all", isExpanded ? "opacity-100 scale-y-110" : "opacity-10")}></div>
+                                            </div>
                                         </div>
 
                                         {isExpanded && (
