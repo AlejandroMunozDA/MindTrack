@@ -121,16 +121,22 @@ export default function App() {
     useEffect(() => { localStorage.setItem('mindtrack_habit_history', JSON.stringify(habitHistory)) }, [habitHistory])
     useEffect(() => { localStorage.setItem('mindtrack_last_active_date', lastActiveDate) }, [lastActiveDate])
 
-    useEffect(() => {
-        localStorage.setItem('habitos_theme', isDark ? 'dark' : 'light')
-        if (isDark) {
-            document.documentElement.classList.add('dark')
-            document.documentElement.classList.remove('light')
-        } else {
-            document.documentElement.classList.remove('dark')
-            document.documentElement.classList.add('light')
-        }
     }, [isDark])
+
+    // Limpieza automática de duplicados en el historial
+    useEffect(() => {
+        if (habitHistory.length > 0) {
+            const seen = new Set();
+            const unique = habitHistory.filter(item => {
+                if (seen.has(item.timestamp)) return false;
+                seen.add(item.timestamp);
+                return true;
+            });
+            if (unique.length !== habitHistory.length) {
+                setHabitHistory(unique);
+            }
+        }
+    }, [habitHistory])
 
     useEffect(() => {
         const getSession = async () => {
@@ -165,22 +171,24 @@ export default function App() {
     }
 
     // Función central de reset que puede ser llamada desde cualquier punto
-    const performDayReset = (sourceHabits, sourcePerfectDays, sourceUser, storedDate) => {
+    const performDayReset = async (sourceHabits, sourcePerfectDays, sourceUser, storedDate) => {
         const today = getLocalDateStr()
-        if (today === storedDate) return false
+        if (today === storedDate) return null
 
         const percentage = sourceHabits.length > 0 ? Math.round((sourceHabits.filter(h => h.completed).length / sourceHabits.length) * 100) : 0
-        const streak = sourcePerfectDays instanceof Set ? sourcePerfectDays.size : (Array.isArray(sourcePerfectDays) ? sourcePerfectDays.length : 0)
+        const streak = getStreak() // Usar función central de racha
 
         const [y, m, d] = storedDate.split('-')
         const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
         const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
-
         const completedHabits = sourceHabits.filter(h => h.completed).map(h => h.name)
 
+        const newRecord = { date: recordDate, streak, percentage, timestamp: storedDate, completedHabits }
+
         setHabitHistory(prev => {
-            if (prev.length > 0 && prev[0].timestamp === storedDate) return prev
-            return [{ date: recordDate, streak, percentage, timestamp: storedDate, completedHabits }, ...prev]
+            const exists = prev.some(h => h.timestamp === storedDate)
+            if (exists) return prev
+            return [newRecord, ...prev]
         })
 
         const resetHabits = sourceHabits.map(h => ({ ...h, completed: false }))
@@ -188,22 +196,28 @@ export default function App() {
         habitsRef.current = resetHabits
 
         if (sourceUser) {
-            supabase.from('habit_history').insert([{
-                user_id: sourceUser.id,
-                date_str: recordDate,
-                streak: streak,
-                percentage: percentage,
-                raw_date: storedDate,
-                completed_habits: completedHabits
-            }]).then()
-            resetHabits.forEach(h => {
-                supabase.from('habits').update({ completed: false }).eq('id', h.id).then()
-            })
+            try {
+                // Verificar si ya existe para evitar duplicados
+                const { data: existing } = await supabase.from('habit_history').select('id').match({ user_id: sourceUser.id, raw_date: storedDate })
+                if (!existing || existing.length === 0) {
+                    await supabase.from('habit_history').insert([{
+                        user_id: sourceUser.id, date_str: recordDate, streak, percentage, raw_date: storedDate, completed_habits: completedHabits
+                    }])
+                }
+
+                // Resetear estados en la DB
+                await Promise.all(sourceHabits.filter(h => h.completed).map(h =>
+                    supabase.from('habits').update({ completed: false }).eq('id', h.id)
+                ))
+            } catch (err) {
+                console.error("Error en reset diario:", err)
+            }
         }
 
         setLastActiveDate(today)
         lastActiveDateRef.current = today
-        return true
+        localStorage.setItem('mindtrack_last_active_date', today)
+        return newRecord
     }
 
     // Timer de medianoche - solo se monta una vez, usa refs para datos frescos
@@ -271,13 +285,46 @@ export default function App() {
             const savedDate = localStorage.getItem('mindtrack_last_active_date')
             const hasCompletedHabits = dbHabits.some(h => h.completed)
 
-            // Si el día cambió y hay hábitos completados de antes, archivamos
+            let finalHabits = dbHabits
+            let historyList = dbHistory ? dbHistory.map(h => ({
+                date: h.date_str,
+                streak: h.streak,
+                percentage: h.percentage,
+                timestamp: h.raw_date,
+                completedHabits: h.completed_habits || []
+            })) : []
+
+            // Si el día cambió y hay progreso por archivar
             if (savedDate && savedDate !== today && hasCompletedHabits) {
-                performDayReset(dbHabits, dbPerfectDays || [], user, savedDate)
-            } else {
-                setHabits(dbHabits)
-                habitsRef.current = dbHabits
+                // Verificar si ya se archivó ese día (por otro dispositivo)
+                const alreadyArchived = historyList.some(r => r.timestamp === savedDate)
+
+                if (!alreadyArchived) {
+                    // Calculamos el record manualmente
+                    const percentage = dbHabits.length > 0 ? Math.round((dbHabits.filter(h => h.completed).length / dbHabits.length) * 100) : 0
+                    const streak = getStreak()
+                    const [y, m, d] = savedDate.split('-')
+                    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+                    const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
+                    const completedHabits = dbHabits.filter(h => h.completed).map(h => h.name)
+                    
+                    const newRecord = { date: recordDate, streak, percentage, timestamp: savedDate, completedHabits }
+                    
+                    // Solo lo añadimos si NO existe ya en la lista recien cargada (doble check)
+                    if (!historyList.some(r => r.timestamp === savedDate)) {
+                        historyList = [newRecord, ...historyList]
+                        // Disparar el reset real en segundo plano (Supabase)
+                        performDayReset(dbHabits, dbPerfectDays || [], user, savedDate)
+                    }
+                }
+
+                // En cualquier caso de cambio de día, los hábitos locales empiezan en false
+                finalHabits = dbHabits.map(h => ({ ...h, completed: false }))
             }
+
+            setHabits(finalHabits)
+            habitsRef.current = finalHabits
+            setHabitHistory(historyList)
 
             setLastActiveDate(today)
             lastActiveDateRef.current = today
@@ -293,25 +340,14 @@ export default function App() {
         }
         const defaultCats = ["Educativo", "Para mi"]
         const serverCats = dbCategories ? dbCategories.map(c => c.name) : []
-        // Fusión sin duplicados: predeterminadas + servidor
         const mergedCats = Array.from(new Set([...defaultCats, ...serverCats]))
         setReadingCategories(mergedCats)
         if (dbFiles) {
-            // Combinamos archivos de la DB con locales que aún no se hayan subido (ids temporales)
             setReadingFiles(prev => {
-                const localOnly = prev.filter(f => typeof f.id === 'number' && f.id > 1000000000000) // Filtro simple para IDs de Date.now()
+                const localOnly = prev.filter(f => typeof f.id === 'number' && f.id > 1000000000000)
                 const dbIds = new Set(dbFiles.map(f => f.id))
                 return [...dbFiles, ...localOnly.filter(f => !dbIds.has(f.id))]
             })
-        }
-        if (dbHistory) {
-            setHabitHistory(dbHistory.map(h => ({
-                date: h.date_str,
-                streak: h.streak,
-                percentage: h.percentage,
-                timestamp: h.raw_date,
-                completedHabits: h.completed_habits || []
-            })))
         }
     }
 
