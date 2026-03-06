@@ -121,6 +121,15 @@ export default function App() {
     useEffect(() => { localStorage.setItem('mindtrack_habit_history', JSON.stringify(habitHistory)) }, [habitHistory])
     useEffect(() => { localStorage.setItem('mindtrack_last_active_date', lastActiveDate) }, [lastActiveDate])
 
+    useEffect(() => {
+        localStorage.setItem('habitos_theme', isDark ? 'dark' : 'light')
+        if (isDark) {
+            document.documentElement.classList.add('dark')
+            document.documentElement.classList.remove('light')
+        } else {
+            document.documentElement.classList.remove('dark')
+            document.documentElement.classList.add('light')
+        }
     }, [isDark])
 
     // Limpieza automática de duplicados en el historial
@@ -307,9 +316,9 @@ export default function App() {
                     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
                     const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
                     const completedHabits = dbHabits.filter(h => h.completed).map(h => h.name)
-                    
+
                     const newRecord = { date: recordDate, streak, percentage, timestamp: savedDate, completedHabits }
-                    
+
                     // Solo lo añadimos si NO existe ya en la lista recien cargada (doble check)
                     if (!historyList.some(r => r.timestamp === savedDate)) {
                         historyList = [newRecord, ...historyList]
