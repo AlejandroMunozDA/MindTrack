@@ -477,11 +477,21 @@ export default function App() {
                 await supabase.from('reading_files').delete().eq('id', deleteConfirm.id)
             } else if (deleteConfirm.type === 'habit_history') {
                 await supabase.from('habit_history').delete().eq('user_id', user.id).eq('raw_date', deleteConfirm.id)
+            } else if (deleteConfirm.type === 'today_reset') {
+                // Resetear en Supabase
+                await Promise.all(habits.filter(h => h.completed).map(h =>
+                    supabase.from('habits').update({ completed: false }).eq('id', h.id)
+                ))
             }
         }
 
         // Retrocompatibilidad local
-        if (deleteConfirm.type === 'habit_history') {
+        if (deleteConfirm.type === 'today_reset') {
+            const resetHabits = habits.map(h => ({ ...h, completed: false }))
+            setHabits(resetHabits)
+            habitsRef.current = resetHabits
+            updatePerfectDays(resetHabits)
+        } else if (deleteConfirm.type === 'habit_history') {
             setHabitHistory(habitHistory.filter(h => h.timestamp !== deleteConfirm.id))
         } else if (deleteConfirm.type === 'habit') {
             const newHabits = habits.filter(h => h.id !== deleteConfirm.id)
@@ -1795,7 +1805,15 @@ export default function App() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className={cn("w-1.5 h-10 bg-indigo-500 rounded-full transition-all", isExpanded ? "scale-y-125 shadow-lg shadow-indigo-500/50" : "animate-pulse")}></div>
+                                            <div className="flex items-center gap-3">
+                                                <button onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openDeleteConfirm('today', 'today_reset', 'Progreso de Hoy');
+                                                }} className="p-2 text-red-500/20 hover:text-red-500 transition-colors">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                                <div className={cn("w-1.5 h-10 bg-indigo-500 rounded-full transition-all", isExpanded ? "scale-y-125 shadow-lg shadow-indigo-500/50" : "animate-pulse")}></div>
+                                            </div>
                                         </div>
 
                                         {isExpanded && (
@@ -1841,7 +1859,7 @@ export default function App() {
                                                 <button onClick={(e) => {
                                                     e.stopPropagation();
                                                     openDeleteConfirm(record.timestamp, 'habit_history', record.date);
-                                                }} className="p-2 text-red-500/20 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                                                }} className="p-2 text-red-500/40 hover:text-red-500 transition-colors">
                                                     <Trash2 size={16} />
                                                 </button>
                                                 <div className={cn("w-1.5 h-10 bg-indigo-500 rounded-full transition-all", isExpanded ? "opacity-100 scale-y-110" : "opacity-10")}></div>
