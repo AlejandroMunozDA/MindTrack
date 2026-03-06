@@ -295,13 +295,23 @@ export default function App() {
             const hasCompletedHabits = dbHabits.some(h => h.completed)
 
             let finalHabits = dbHabits
-            let historyList = dbHistory ? dbHistory.map(h => ({
-                date: h.date_str,
-                streak: h.streak,
-                percentage: h.percentage,
-                timestamp: h.raw_date,
-                completedHabits: h.completed_habits || []
-            })) : []
+            // FILTRO FORZADO: Limpiar historial antiguo según petición del usuario (empezar desde 06/Mar/2026)
+            const cutoffDate = "2026-03-06"
+
+            let historyList = dbHistory ? dbHistory
+                .filter(h => h.raw_date >= cutoffDate)
+                .map(h => ({
+                    date: h.date_str,
+                    streak: h.streak,
+                    percentage: h.percentage,
+                    timestamp: h.raw_date,
+                    completedHabits: h.completed_habits || []
+                })) : []
+
+            // Limpieza proactiva en Supabase para asegurar que no vuelvan
+            if (dbHistory && dbHistory.some(h => h.raw_date < cutoffDate)) {
+                supabase.from('habit_history').delete().lt('raw_date', cutoffDate).eq('user_id', user.id).then()
+            }
 
             // Si el día cambió y hay progreso por archivar
             if (savedDate && savedDate !== today && hasCompletedHabits) {
