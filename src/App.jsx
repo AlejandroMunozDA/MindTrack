@@ -349,7 +349,14 @@ export default function App() {
             lastActiveDateRef.current = today
             localStorage.setItem('mindtrack_last_active_date', today)
         }
-        if (dbPerfectDays) setPerfectDays(new Set(dbPerfectDays.map(d => d.date)))
+        if (dbPerfectDays) {
+            const cutoffDate = "2026-03-06"
+            const filteredDates = dbPerfectDays.filter(d => d.date >= cutoffDate).map(d => d.date)
+            setPerfectDays(new Set(filteredDates))
+            if (dbPerfectDays.some(d => d.date < cutoffDate)) {
+                supabase.from('perfect_days').delete().lt('date', cutoffDate).eq('user_id', user.id).then()
+            }
+        }
         if (dbNotes) setNotes(dbNotes)
         if (dbActivities) setActivities(dbActivities)
         if (dbAgenda) {
