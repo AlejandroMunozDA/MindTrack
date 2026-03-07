@@ -209,31 +209,23 @@ export default function App() {
                 // Verificar si ya existe para evitar duplicados
                 const { data: existing } = await supabase.from('habit_history').select('id').match({ user_id: sourceUser.id, raw_date: storedDate })
                 if (!existing || existing.length === 0) {
-                    const { error } = await supabase.from('habit_history').insert([{
+                    await supabase.from('habit_history').insert([{
                         user_id: sourceUser.id, date_str: recordDate, streak, percentage, raw_date: storedDate, completed_habits: completedHabits
                     }])
-                    if (error) throw error
                 }
 
                 // Resetear estados en la DB
                 await Promise.all(sourceHabits.filter(h => h.completed).map(h =>
                     supabase.from('habits').update({ completed: false }).eq('id', h.id)
                 ))
-
-                // Solo si todo salió bien en la DB, actualizamos la fecha de control
-                setLastActiveDate(today)
-                lastActiveDateRef.current = today
-                localStorage.setItem('mindtrack_last_active_date', today)
             } catch (err) {
                 console.error("Error en reset diario:", err)
             }
-        } else {
-            // Si no hay usuario, igual reseteamos localmente
-            setLastActiveDate(today)
-            lastActiveDateRef.current = today
-            localStorage.setItem('mindtrack_last_active_date', today)
         }
 
+        setLastActiveDate(today)
+        lastActiveDateRef.current = today
+        localStorage.setItem('mindtrack_last_active_date', today)
         return newRecord
     }
 
@@ -323,16 +315,29 @@ export default function App() {
 
             // Si el día cambió y hay progreso por archivar
             if (savedDate && savedDate !== today && hasCompletedHabits) {
-                // Delegamos TODO a performDayReset para evitar lógica duplicada y errores de estado
-                performDayReset(dbHabits, dbPerfectDays || [], user, savedDate)
-                
-                // Empezamos hoy con hábitos limpios localmente
-                finalHabits = dbHabits.map(h => ({ ...h, completed: false }))
-            } else if (savedDate && savedDate !== today) {
-                // Si el día cambió pero no había hábitos completados, solo actualizamos la fecha
-                setLastActiveDate(today)
-                lastActiveDateRef.current = today
-                localStorage.setItem('mindtrack_last_active_date', today)
+                // Verificar si ya se archivó ese día (por otro dispositivo)
+                const alreadyArchived = historyList.some(r => r.timestamp === savedDate)
+
+                if (!alreadyArchived) {
+                    // Calculamos el record manualmente
+                    const percentage = dbHabits.length > 0 ? Math.round((dbHabits.filter(h => h.completed).length / dbHabits.length) * 100) : 0
+                    const streak = getStreak()
+                    const [y, m, d] = savedDate.split('-')
+                    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+                    const recordDate = `${d}/${months[parseInt(m) - 1]}/${y}`
+                    const completedHabits = dbHabits.filter(h => h.completed).map(h => h.name)
+
+                    const newRecord = { date: recordDate, streak, percentage, timestamp: savedDate, completedHabits }
+
+                    // Solo lo añadimos si NO existe ya en la lista recien cargada (doble check)
+                    if (!historyList.some(r => r.timestamp === savedDate)) {
+                        historyList = [newRecord, ...historyList]
+                        // Disparar el reset real en segundo plano (Supabase)
+                        performDayReset(dbHabits, dbPerfectDays || [], user, savedDate)
+                    }
+                }
+
+                // En cualquier caso de cambio de día, los hábitos locales empiezan en false
                 finalHabits = dbHabits.map(h => ({ ...h, completed: false }))
             }
 
@@ -340,12 +345,9 @@ export default function App() {
             habitsRef.current = finalHabits
             setHabitHistory(historyList)
 
-            // No establecemos savedDate aquí si vamos a llamar a performDayReset (que lo hará al final)
-            if (!(savedDate && savedDate !== today && hasCompletedHabits)) {
-                setLastActiveDate(today)
-                lastActiveDateRef.current = today
-                localStorage.setItem('mindtrack_last_active_date', today)
-            }
+            setLastActiveDate(today)
+            lastActiveDateRef.current = today
+            localStorage.setItem('mindtrack_last_active_date', today)
         }
         if (dbPerfectDays) {
             const cutoffDate = "2026-03-06"
