@@ -210,7 +210,7 @@ export default function App() {
                 const { data: existing } = await supabase.from('habit_history').select('id').match({ user_id: sourceUser.id, raw_date: storedDate })
                 if (!existing || existing.length === 0) {
                     await supabase.from('habit_history').insert([{
-                        user_id: sourceUser.id, date_str: recordDate, streak, percentage, raw_date: storedDate, completed_habits: completedHabits
+                        user_id: sourceUser.id, date_str: recordDate, streak, percentage, raw_date: storedDate
                     }])
                 }
 
@@ -295,26 +295,17 @@ export default function App() {
             const hasCompletedHabits = dbHabits.some(h => h.completed)
 
             let finalHabits = dbHabits
-            // FILTRO FORZADO: Limpiar historial antiguo según petición del usuario (empezar desde 06/Mar/2026)
-            const cutoffDate = "2026-03-06"
 
-            let historyList = dbHistory ? dbHistory
-                .filter(h => h.raw_date >= cutoffDate)
-                .map(h => ({
-                    date: h.date_str,
-                    streak: h.streak,
-                    percentage: h.percentage,
-                    timestamp: h.raw_date,
-                    completedHabits: h.completed_habits || []
-                })) : []
+            let historyList = dbHistory ? dbHistory.map(h => ({
+                date: h.date_str,
+                streak: h.streak,
+                percentage: h.percentage,
+                timestamp: h.raw_date,
+                completedHabits: []
+            })) : []
 
-            // Limpieza proactiva en Supabase para asegurar que no vuelvan
-            if (dbHistory && dbHistory.some(h => h.raw_date < cutoffDate)) {
-                supabase.from('habit_history').delete().lt('raw_date', cutoffDate).eq('user_id', user.id).then()
-            }
-
-            // Si el día cambió y hay progreso por archivar
-            if (savedDate && savedDate !== today && hasCompletedHabits) {
+            // Si el día cambió y hay progreso por archivar (o simplemente cambió el día, archivamos igual)
+            if (savedDate && savedDate !== today) {
                 // Verificar si ya se archivó ese día (por otro dispositivo)
                 const alreadyArchived = historyList.some(r => r.timestamp === savedDate)
 
@@ -350,12 +341,8 @@ export default function App() {
             localStorage.setItem('mindtrack_last_active_date', today)
         }
         if (dbPerfectDays) {
-            const cutoffDate = "2026-03-06"
-            const filteredDates = dbPerfectDays.filter(d => d.date >= cutoffDate).map(d => d.date)
+            const filteredDates = dbPerfectDays.map(d => d.date)
             setPerfectDays(new Set(filteredDates))
-            if (dbPerfectDays.some(d => d.date < cutoffDate)) {
-                supabase.from('perfect_days').delete().lt('date', cutoffDate).eq('user_id', user.id).then()
-            }
         }
         if (dbNotes) setNotes(dbNotes)
         if (dbActivities) setActivities(dbActivities)
