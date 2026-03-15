@@ -313,6 +313,14 @@ export default function App() {
             const deletedLocally = JSON.parse(localStorage.getItem('mindtrack_deleted_history') || '[]')
             historyList = historyList.filter(h => !deletedLocally.includes(h.timestamp))
 
+            // REINICIO FORZADO POR EL USUARIO: Asegurar que hoy es el primer día eliminando todo lo anterior a hoy
+            if (historyList.some(h => h.timestamp < today)) {
+                supabase.from('habit_history').delete().lt('raw_date', today).eq('user_id', user.id).then();
+                historyList = historyList.filter(h => h.timestamp >= today);
+                localStorage.setItem('mindtrack_habit_history', JSON.stringify([]));
+                localStorage.setItem('mindtrack_deleted_history', JSON.stringify([]));
+            }
+
             // Si el día cambió y hay progreso por archivar (o simplemente cambió el día, archivamos igual)
             if (savedDate && savedDate !== today) {
                 // Verificar si ya se archivó ese día (por otro dispositivo)
@@ -358,7 +366,11 @@ export default function App() {
             localStorage.setItem('mindtrack_last_active_date', today)
         }
         if (dbPerfectDays) {
-            const filteredDates = dbPerfectDays.map(d => d.date)
+            const todayStrFilter = getLocalDateStr()
+            if (dbPerfectDays.some(d => d.date < todayStrFilter)) {
+                supabase.from('perfect_days').delete().lt('date', todayStrFilter).eq('user_id', user.id).then();
+            }
+            const filteredDates = dbPerfectDays.filter(d => d.date >= todayStrFilter).map(d => d.date)
             setPerfectDays(new Set(filteredDates))
         }
         if (dbNotes) setNotes(dbNotes)
