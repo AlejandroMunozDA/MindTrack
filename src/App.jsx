@@ -339,6 +339,14 @@ export default function App() {
 
                 // En cualquier caso de cambio de día, los hábitos locales empiezan en false
                 finalHabits = dbHabits.map(h => ({ ...h, completed: false }))
+                
+                // Si la función performDayReset no se llamó porque alreadyArchived es true, 
+                // de todos modos nos aseguramos que en Supabase se reinicien las palomitas:
+                if (alreadyArchived && user) {
+                    Promise.all(dbHabits.filter(h => h.completed).map(h =>
+                        supabase.from('habits').update({ completed: false }).eq('id', h.id)
+                    )).catch(err => console.error("Error limpiando hábitos en el nuevo día:", err));
+                }
             }
 
             setHabits(finalHabits)
@@ -1801,7 +1809,7 @@ export default function App() {
                             {(() => {
                                 const completedList = habits.filter(h => h.completed)
                                 const percentage = habits.length > 0 ? Math.round((completedList.length / habits.length) * 100) : 0
-                                const streak = perfectDays.size
+                                const streak = getStreak()
                                 const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
                                 const now = new Date()
                                 const todayStr = `${now.getDate().toString().padStart(2, '0')}/${months[now.getMonth()]}/${now.getFullYear()}`
