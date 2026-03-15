@@ -292,17 +292,26 @@ export default function App() {
         if (dbHabits) {
             const today = getLocalDateStr()
             const savedDate = localStorage.getItem('mindtrack_last_active_date')
-            const hasCompletedHabits = dbHabits.some(h => h.completed)
-
+            
             let finalHabits = dbHabits
+            
+            const localHistoryStr = localStorage.getItem('mindtrack_habit_history')
+            const localHistory = localHistoryStr ? JSON.parse(localHistoryStr) : []
+            
+            let historyList = dbHistory ? dbHistory.map(h => {
+                const localRecord = localHistory.find(l => l.timestamp === h.raw_date)
+                return {
+                    date: h.date_str,
+                    streak: h.streak,
+                    percentage: h.percentage,
+                    timestamp: h.raw_date,
+                    completedHabits: localRecord && localRecord.completedHabits ? localRecord.completedHabits : []
+                }
+            }) : []
 
-            let historyList = dbHistory ? dbHistory.map(h => ({
-                date: h.date_str,
-                streak: h.streak,
-                percentage: h.percentage,
-                timestamp: h.raw_date,
-                completedHabits: []
-            })) : []
+            // Filtramos los registros que fueron eliminados localmente por si falló en Supabase (falta de política RLS)
+            const deletedLocally = JSON.parse(localStorage.getItem('mindtrack_deleted_history') || '[]')
+            historyList = historyList.filter(h => !deletedLocally.includes(h.timestamp))
 
             // Si el día cambió y hay progreso por archivar (o simplemente cambió el día, archivamos igual)
             if (savedDate && savedDate !== today) {
@@ -470,7 +479,8 @@ export default function App() {
             } else if (deleteConfirm.type === 'pdf_file') {
                 await supabase.from('reading_files').delete().eq('id', deleteConfirm.id)
             } else if (deleteConfirm.type === 'habit_history') {
-                await supabase.from('habit_history').delete().eq('user_id', user.id).eq('raw_date', deleteConfirm.id)
+                const { error } = await supabase.from('habit_history').delete().eq('user_id', user.id).eq('raw_date', deleteConfirm.id)
+                if (error) console.error("Error al eliminar historial en Supabase:", error);
             } else if (deleteConfirm.type === 'today_reset') {
                 // Resetear en Supabase
                 await Promise.all(habits.filter(h => h.completed).map(h =>
@@ -486,7 +496,15 @@ export default function App() {
             habitsRef.current = resetHabits
             updatePerfectDays(resetHabits)
         } else if (deleteConfirm.type === 'habit_history') {
-            setHabitHistory(habitHistory.filter(h => h.timestamp !== deleteConfirm.id))
+            const updatedHistory = habitHistory.filter(h => h.timestamp !== deleteConfirm.id)
+            setHabitHistory(updatedHistory)
+            localStorage.setItem('mindtrack_habit_history', JSON.stringify(updatedHistory))
+            // También guardamos una clave de "borrados" locales para que fetchUserData no los vuelva a traer si Supabase falla por RLS
+            const deleted = JSON.parse(localStorage.getItem('mindtrack_deleted_history') || '[]')
+            if (!deleted.includes(deleteConfirm.id)) {
+                deleted.push(deleteConfirm.id)
+                localStorage.setItem('mindtrack_deleted_history', JSON.stringify(deleted))
+            }
         } else if (deleteConfirm.type === 'habit') {
             const newHabits = habits.filter(h => h.id !== deleteConfirm.id)
             setHabits(newHabits)
@@ -878,8 +896,19 @@ export default function App() {
     const getStreak = () => {
         let streak = 0
         let checkDate = new Date()
+        
+        const formatDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+        
+        const todayStr = formatDate(checkDate)
+        
+        if (perfectDays.has(todayStr)) {
+            streak++
+        }
+        
+        checkDate.setDate(checkDate.getDate() - 1)
+        
         while (true) {
-            const dateStr = checkDate.toISOString().split('T')[0]
+            const dateStr = formatDate(checkDate)
             if (perfectDays.has(dateStr)) {
                 streak++
                 checkDate.setDate(checkDate.getDate() - 1)
